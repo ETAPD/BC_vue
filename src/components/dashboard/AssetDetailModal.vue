@@ -3,8 +3,15 @@
     <div class="detail-modal">
       <div class="detail-header">
         <div class="detail-asset-info">
-          <img v-if="detailAsset?.image_url" :src="detailAsset.image_url" :alt="detailAsset.symbol" class="detail-asset-img" />
-          <span v-else class="asset-img-placeholder detail-placeholder">{{ detailAsset?.symbol?.slice(0, 2) }}</span>
+          <img
+            v-if="detailAsset?.image_url"
+            :src="detailAsset.image_url"
+            :alt="detailAsset.symbol"
+            class="detail-asset-img"
+          />
+          <span v-else class="asset-img-placeholder detail-placeholder">{{
+            detailAsset?.symbol?.slice(0, 2)
+          }}</span>
           <div>
             <h2 class="detail-symbol">{{ detailAsset?.symbol }}</h2>
             <span class="detail-name">{{ detailAsset?.asset_name }}</span>
@@ -14,28 +21,55 @@
       </div>
 
       <div class="detail-price-row">
-        <span class="detail-current-price">{{ formatCurrency(detailAsset?.current_price ?? 0) }}</span>
-        <span v-if="detailPrices.length >= 2" :class="['detail-change', chartPriceChange >= 0 ? 'up' : 'down']">
-          {{ chartPriceChange >= 0 ? '+' : '' }}{{ formatCurrency(chartPriceChange) }}
-          ({{ chartPriceChangePercent }}%)
+        <span class="detail-current-price">{{
+          formatCurrency(detailAsset?.current_price ?? 0)
+        }}</span>
+        <span
+          v-if="detailPrices.length >= 2"
+          :class="['detail-change', chartPriceChange >= 0 ? 'up' : 'down']"
+        >
+          {{ chartPriceChange >= 0 ? '+' : '' }}{{ formatCurrency(chartPriceChange) }} ({{
+            chartPriceChangePercent
+          }}%)
         </span>
       </div>
 
       <div class="chart-section">
         <div class="range-tabs">
-          <button v-for="range in ranges" :key="range" :class="['range-btn', { active: detailRange === range }]" @click="setRange(range)">
+          <button
+            v-for="range in ranges"
+            :key="range"
+            :class="['range-btn', { active: detailRange === range }]"
+            @click="setRange(range)"
+          >
             {{ range }}
           </button>
         </div>
 
         <div v-if="detailLoading" class="chart-loading">Načítavam graf…</div>
-        <div v-else-if="detailPrices.length < 2" class="chart-empty">Pre tento rozsah nie sú k dispozícii cenové údaje</div>
+        <div v-else-if="detailPrices.length < 2" class="chart-empty">
+          Pre tento rozsah nie sú k dispozícii cenové údaje
+        </div>
         <div v-else class="chart-container">
-          <svg :viewBox="`0 0 ${chartWidth} ${chartHeight}`" class="price-chart" preserveAspectRatio="none" @mousemove="onChartMouseMove" @mouseleave="onChartMouseLeave">
+          <svg
+            :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
+            class="price-chart"
+            preserveAspectRatio="none"
+            @mousemove="onChartMouseMove"
+            @mouseleave="onChartMouseLeave"
+          >
             <defs>
               <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" :stop-color="chartPriceChange >= 0 ? '#22c55e' : '#ef4444'" stop-opacity="0.3" />
-                <stop offset="100%" :stop-color="chartPriceChange >= 0 ? '#22c55e' : '#ef4444'" stop-opacity="0.02" />
+                <stop
+                  offset="0%"
+                  :stop-color="chartPriceChange >= 0 ? '#22c55e' : '#ef4444'"
+                  stop-opacity="0.3"
+                />
+                <stop
+                  offset="100%"
+                  :stop-color="chartPriceChange >= 0 ? '#22c55e' : '#ef4444'"
+                  stop-opacity="0.02"
+                />
               </linearGradient>
             </defs>
 
@@ -51,20 +85,54 @@
             />
 
             <path :d="priceChartArea" fill="url(#chartGrad)" />
-            <path :d="priceChartPath" fill="none" :stroke="chartPriceChange >= 0 ? '#22c55e' : '#ef4444'" stroke-width="2" stroke-linejoin="round" />
+            <path
+              :d="priceChartPath"
+              fill="none"
+              :stroke="chartPriceChange >= 0 ? '#22c55e' : '#ef4444'"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
 
             <template v-if="chartTooltip.show">
-              <line :x1="chartTooltip.x" :y1="chartPadding" :x2="chartTooltip.x" :y2="chartHeight - chartPadding" stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="3,3" />
-              <line :x1="chartPadding" :y1="chartTooltip.y" :x2="chartWidth - chartPadding" :y2="chartTooltip.y" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3" />
-              <circle :cx="chartTooltip.x" :cy="chartTooltip.y" r="4" :fill="chartTooltip.change >= 0 ? '#22c55e' : '#ef4444'" stroke="white" stroke-width="1.5" />
+              <line
+                :x1="chartTooltip.x"
+                :y1="chartPadding"
+                :x2="chartTooltip.x"
+                :y2="chartHeight - chartPadding"
+                stroke="rgba(255,255,255,0.25)"
+                stroke-width="1"
+                stroke-dasharray="3,3"
+              />
+              <line
+                :x1="chartPadding"
+                :y1="chartTooltip.y"
+                :x2="chartWidth - chartPadding"
+                :y2="chartTooltip.y"
+                stroke="rgba(255,255,255,0.15)"
+                stroke-width="1"
+                stroke-dasharray="3,3"
+              />
+              <circle
+                :cx="chartTooltip.x"
+                :cy="chartTooltip.y"
+                r="4"
+                :fill="chartTooltip.change >= 0 ? '#22c55e' : '#ef4444'"
+                stroke="white"
+                stroke-width="1.5"
+              />
             </template>
           </svg>
 
-          <div v-if="chartTooltip.show" class="chart-tooltip" :style="{ left: (chartTooltip.x / chartWidth) * 100 + '%' }">
+          <div
+            v-if="chartTooltip.show"
+            class="chart-tooltip"
+            :style="{ left: (chartTooltip.x / chartWidth) * 100 + '%' }"
+          >
             <span class="ct-price">{{ formatCurrency(chartTooltip.price) }}</span>
             <span :class="['ct-change', chartTooltip.change >= 0 ? 'up' : 'down']">
-              {{ chartTooltip.change >= 0 ? '+' : '' }}{{ formatCurrency(chartTooltip.change) }}
-              ({{ chartTooltip.changePct }}%)
+              {{ chartTooltip.change >= 0 ? '+' : '' }}{{ formatCurrency(chartTooltip.change) }} ({{
+                chartTooltip.changePct
+              }}%)
             </span>
             <span class="ct-date">{{ chartTooltip.date }}</span>
           </div>
@@ -128,7 +196,11 @@ export default defineComponent({
     chartPriceChangePercent(): string {
       const points = this.detailPrices as any[]
       if (points.length < 2 || Number(points[0].price) === 0) return '0.0'
-      return (((Number(points[points.length - 1].price) - Number(points[0].price)) / Number(points[0].price)) * 100).toFixed(2)
+      return (
+        ((Number(points[points.length - 1].price) - Number(points[0].price)) /
+          Number(points[0].price)) *
+        100
+      ).toFixed(2)
     },
     priceChartPath(): string {
       const points = this.detailPrices as any[]
@@ -139,11 +211,14 @@ export default defineComponent({
       const priceRange = maxPrice - minPrice || 1
       const width = this.chartWidth - this.chartPadding * 2
       const height = this.chartHeight - this.chartPadding * 2
-      return points.map((point: any, index: number) => {
-        const x = this.chartPadding + (index / (points.length - 1)) * width
-        const y = this.chartPadding + height - ((Number(point.price) - minPrice) / priceRange) * height
-        return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-      }).join(' ')
+      return points
+        .map((point: any, index: number) => {
+          const x = this.chartPadding + (index / (points.length - 1)) * width
+          const y =
+            this.chartPadding + height - ((Number(point.price) - minPrice) / priceRange) * height
+          return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+        })
+        .join(' ')
     },
     priceChartArea(): string {
       if (!this.priceChartPath) return ''
@@ -206,7 +281,8 @@ export default defineComponent({
       const priceRange = maxPrice - minPrice || 1
       const height = this.chartHeight - this.chartPadding * 2
       const pointX = this.chartPadding + (pointIndex / (points.length - 1)) * width
-      const pointY = this.chartPadding + height - ((Number(point.price) - minPrice) / priceRange) * height
+      const pointY =
+        this.chartPadding + height - ((Number(point.price) - minPrice) / priceRange) * height
       const startPrice = Number(points[0].price) || 0
       const change = Number(point.price) - startPrice
       const changePct = startPrice ? ((change / startPrice) * 100).toFixed(2) : '0.00'
@@ -236,5 +312,4 @@ export default defineComponent({
 })
 </script>
 
-<style>
-</style>
+<style></style>

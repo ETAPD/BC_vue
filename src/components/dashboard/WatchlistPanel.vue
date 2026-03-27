@@ -21,8 +21,16 @@
       <div v-for="item in watchlist" :key="item.watchlist_item_id" class="watch-item">
         <span class="watch-symbol">{{ item.symbol }}</span>
         <span class="watch-price">{{ formatCurrency(item.current_price) }}</span>
-        <span :class="['watch-change', Number(item.change_percent) >= 0 ? 'up' : 'down']">{{ formatPercent(item.change_percent) }}</span>
-        <button class="remove-btn" @click="$emit('remove', item.watchlist_item_id)" title="Odstrániť">✕</button>
+        <span :class="['watch-change', Number(item.change_percent) >= 0 ? 'up' : 'down']">{{
+          formatPercent(item.change_percent)
+        }}</span>
+        <button
+          class="remove-btn"
+          @click="$emit('remove', item.watchlist_item_id)"
+          title="Odstrániť"
+        >
+          ✕
+        </button>
       </div>
       <div v-if="!watchlist.length" class="empty-msg">Žiadne položky v sledovacom zozname</div>
     </div>
@@ -60,7 +68,9 @@ export default defineComponent({
       return (this.watchlist as any[]).map((item: any) => String(item.symbol || '').toUpperCase())
     },
     availableAssets(): any[] {
-      return (this.assets as any[]).filter((asset: any) => !this.usedSymbols.includes(String(asset.symbol || '').toUpperCase()))
+      return (this.assets as any[]).filter(
+        (asset: any) => !this.usedSymbols.includes(String(asset.symbol || '').toUpperCase()),
+      )
     },
     isAtLimit(): boolean {
       return this.maxWatchlist !== -1 && (this.watchlist as any[]).length >= this.maxWatchlist
@@ -74,7 +84,8 @@ export default defineComponent({
       }
       this.localError = ''
       this.showAdd = !this.showAdd
-      if (this.showAdd && this.availableAssets.length && !this.selectedSymbol) this.selectedSymbol = this.availableAssets[0].symbol
+      if (this.showAdd && this.availableAssets.length && !this.selectedSymbol)
+        this.selectedSymbol = this.availableAssets[0].symbol
     },
     submitAdd() {
       if (this.isAtLimit) {
@@ -98,5 +109,4 @@ export default defineComponent({
 })
 </script>
 
-<style>
-</style>
+<style></style>
