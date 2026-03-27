@@ -1,0 +1,10 @@
+﻿// Re-exports from split composable modules for backward compatibility
+export { getDbUser, updateUserProfile, uploadProfilePicture, getUserPreferences, upsertUserPreferences, getUserLimits, setUserRole, checkIsAdmin, exportUserData, deleteUserAccount } from './useUser'
+export { getPortfolio, ensurePortfolioExists, getHoldings, getWatchlistItems, addWatchlistItem, removeWatchlistItem } from './usePortfolio'
+export { getOpenOrders, getRecentTrades, getAllTrades, getTradesForAsset, placeOrder, cancelOrder, updateOrder } from './useOrders'
+export { getAssets, getPriceHistory } from './useAssets'
+export { getFundingMethods, addFundingMethod, removeFundingMethod } from './useFunding'
+export { adminGetAllUsers, adminGetAllPortfolios, adminUpdateUser, adminGetAllOrders, adminGetAllTrades, adminGetAllHoldings, adminUpdateOrderStatus, adminUpdateUserStatus, adminGetContactMessages, adminDeleteContactMessage, adminGetAllTickets } from './useAdmin'
+export { createTicket, getUserTickets, getTicketMessages, sendTicketMessage, closeTicket, reopenTicket } from './useSupport'
+export { createAdminNotification, getUserNotifications, markNotificationRead } from './useNotifications'
+export { submitContactMessage } from './useContact'
