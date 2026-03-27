@@ -189,7 +189,12 @@ export default defineComponent({
     }
   },
   computed: {
-    ...mapWritableState(useSupportFormStore, ['activeTab', 'selectedSubject', 'customSubject', 'message']),
+    ...mapWritableState(useSupportFormStore, [
+      'activeTab',
+      'selectedSubject',
+      'customSubject',
+      'message',
+    ]),
     finalSubject() {
       return this.selectedSubject === '__other' ? this.customSubject.trim() : this.selectedSubject
     },

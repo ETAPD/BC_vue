@@ -195,7 +195,7 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
     <div class="app-header-inner">
       <router-link to="/" class="brand">
         <span class="brand-icon">&#9670;</span>
-        <span class="brand-text">ApexMarkets</span>
+        <span class="brand-text">TradeProjekt</span>
       </router-link>
 
       <nav class="app-nav">
