@@ -1,252 +1,208 @@
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import AppNavbar from '../components/AppNavbar.vue'
 import PriceChart from '../components/PriceChart.vue'
 import { getAssets, getPriceHistory } from '../composables/useDashboard'
 
-const loading = ref(true)
-const assets = ref<any[]>([])
-const searchQuery = ref('')
-const filterType = ref('all')
-
-// Selected asset (inline chart – no modal)
-const selectedAsset = ref<any>(null)
-const selectedPrices = ref<any[]>([])
-const selectedRange = ref<'1h' | '24h' | '7d' | '30d'>('24h')
-const chartLoading = ref(false)
-
-// Spotlight carousel
-const spotlightAssets = ref<any[]>([])
-const spotlightPrices = ref<Record<string, any[]>>({})
-const spotlightIndex = ref(0)
-const spotlightPaused = ref(false)
-const spotlightFilterType = ref('all')
-const spotlightLoading = ref(true)
-let spotlightTimer: ReturnType<typeof setInterval> | null = null
-
-const spotlightCurrent = computed(() => spotlightAssets.value[spotlightIndex.value] ?? null)
-const spotlightCurrentPrices = computed(() => {
-  const a = spotlightCurrent.value
-  return a ? (spotlightPrices.value[a.asset_id] ?? []) : []
-})
-
-const spotPriceChange = computed(() => {
-  const pts = spotlightCurrentPrices.value
-  if (pts.length < 2) return 0
-  return pts[pts.length - 1].price - pts[0].price
-})
-
-const spotPriceChangePct = computed(() => {
-  const pts = spotlightCurrentPrices.value
-  if (pts.length < 2 || pts[0].price === 0) return '0.0'
-  return (((pts[pts.length - 1].price - pts[0].price) / pts[0].price) * 100).toFixed(2)
-})
-
-const spotSummaryStats = computed(() => {
-  const pts = spotlightCurrentPrices.value
-  if (!pts.length) {
+export default defineComponent({
+  name: 'MarketsView',
+  components: { AppNavbar, PriceChart },
+  data() {
     return {
-      open: 0,
-      high: 0,
-      low: 0,
-      spreadPct: '0.00',
+      loading: true,
+      assets: [] as any[],
+      searchQuery: '',
+      filterType: 'all',
+      selectedAsset: null as any,
+      selectedPrices: [] as any[],
+      selectedRange: '24h' as '1h' | '24h' | '7d' | '30d',
+      chartLoading: false,
+      spotlightAssets: [] as any[],
+      spotlightPrices: {} as Record<string, any[]>,
+      spotlightIndex: 0,
+      spotlightPaused: false,
+      spotlightFilterType: 'all',
+      spotlightLoading: true,
+      spotlightTimer: null as ReturnType<typeof setInterval> | null,
+      refreshTimer: null as ReturnType<typeof setInterval> | null,
+      chartWidth: 700,
+      chartHeight: 260,
+      chartPadding: 40,
     }
-  }
-
-  const prices = pts.map((p: any) => p.price)
-  const open = pts[0]?.price ?? 0
-  const high = Math.max(...prices)
-  const low = Math.min(...prices)
-  const spreadPct = open === 0 ? '0.00' : (((high - low) / open) * 100).toFixed(2)
-
-  return {
-    open,
-    high,
-    low,
-    spreadPct,
-  }
-})
-
-async function loadSpotlightData() {
-  const pool =
-    spotlightFilterType.value === 'all'
-      ? assets.value
-      : assets.value.filter((a: any) => a.asset_type === spotlightFilterType.value)
-  const picked = pool.slice(0, 5)
-  spotlightAssets.value = picked
-  spotlightIndex.value = 0
-  spotlightLoading.value = true
-  const priceMap: Record<string, any[]> = {}
-  for (const a of picked) {
+  },
+  computed: {
+    spotlightCurrent(): any {
+      return this.spotlightAssets[this.spotlightIndex] ?? null
+    },
+    spotlightCurrentPrices(): any[] {
+      const a = this.spotlightCurrent
+      return a ? (this.spotlightPrices[a.asset_id] ?? []) : []
+    },
+    spotPriceChange(): number {
+      const pts = this.spotlightCurrentPrices
+      if (pts.length < 2) return 0
+      return pts[pts.length - 1].price - pts[0].price
+    },
+    spotPriceChangePct(): string {
+      const pts = this.spotlightCurrentPrices
+      if (pts.length < 2 || pts[0].price === 0) return '0.0'
+      return (((pts[pts.length - 1].price - pts[0].price) / pts[0].price) * 100).toFixed(2)
+    },
+    spotSummaryStats(): { open: number; high: number; low: number; spreadPct: string } {
+      const pts = this.spotlightCurrentPrices
+      if (!pts.length) return { open: 0, high: 0, low: 0, spreadPct: '0.00' }
+      const prices = pts.map((p: any) => p.price)
+      const open = pts[0]?.price ?? 0
+      const high = Math.max(...prices)
+      const low = Math.min(...prices)
+      const spreadPct = open === 0 ? '0.00' : (((high - low) / open) * 100).toFixed(2)
+      return { open, high, low, spreadPct }
+    },
+    assetTypes(): string[] {
+      const types = new Set(this.assets.map((a: any) => a.asset_type))
+      return ['all', ...Array.from(types)]
+    },
+    filteredAssets(): any[] {
+      let result = this.assets
+      if (this.filterType !== 'all') {
+        result = result.filter((a: any) => a.asset_type === this.filterType)
+      }
+      const q = this.searchQuery.toLowerCase()
+      if (q) {
+        result = result.filter(
+          (a: any) => a.symbol?.toLowerCase().includes(q) || a.name?.toLowerCase().includes(q),
+        )
+      }
+      return result
+    },
+    chartPriceChange(): number {
+      const pts = this.selectedPrices
+      if (pts.length < 2) return 0
+      return pts[pts.length - 1].price - pts[0].price
+    },
+    chartPriceChangePercent(): string {
+      const pts = this.selectedPrices
+      if (pts.length < 2 || pts[0].price === 0) return '0.0'
+      return (((pts[pts.length - 1].price - pts[0].price) / pts[0].price) * 100).toFixed(2)
+    },
+    chartSummaryStats(): { open: number; high: number; low: number; spreadPct: string } {
+      const pts = this.selectedPrices
+      if (!pts.length) return { open: 0, high: 0, low: 0, spreadPct: '0.00' }
+      const prices = pts.map((p: any) => p.price)
+      const open = pts[0]?.price ?? 0
+      const high = Math.max(...prices)
+      const low = Math.min(...prices)
+      const spreadPct = open === 0 ? '0.00' : (((high - low) / open) * 100).toFixed(2)
+      return { open, high, low, spreadPct }
+    },
+    mainChartTooltip(): any {
+      return (
+        (this.$refs.mainChartRef as any)?.tooltip ?? {
+          show: false,
+          x: 0,
+          y: 0,
+          price: 0,
+          date: '',
+          change: 0,
+          changePct: '0',
+        }
+      )
+    },
+  },
+  watch: {
+    spotlightFilterType() {
+      this.loadSpotlightData()
+    },
+    selectedRange() {
+      if (this.selectedAsset) this.loadPriceData()
+    },
+  },
+  async mounted() {
     try {
-      priceMap[a.asset_id] = await getPriceHistory(a.asset_id, '24h')
-    } catch {
-      priceMap[a.asset_id] = []
-    }
-  }
-  spotlightPrices.value = priceMap
-  spotlightLoading.value = false
-}
-
-function startSpotlightCycle() {
-  stopSpotlightCycle()
-  spotlightTimer = setInterval(() => {
-    if (!spotlightPaused.value && spotlightAssets.value.length > 1) {
-      spotlightIndex.value = (spotlightIndex.value + 1) % spotlightAssets.value.length
-    }
-  }, 5000)
-}
-
-function stopSpotlightCycle() {
-  if (spotlightTimer) clearInterval(spotlightTimer)
-}
-
-function selectSpotlight(idx: number) {
-  spotlightIndex.value = idx
-}
-
-function toggleSpotlightPause() {
-  spotlightPaused.value = !spotlightPaused.value
-}
-
-watch(spotlightFilterType, () => {
-  loadSpotlightData()
-})
-
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-const assetTypes = computed(() => {
-  const types = new Set(assets.value.map((a: any) => a.asset_type))
-  return ['all', ...Array.from(types)]
-})
-
-const filteredAssets = computed(() => {
-  let result = assets.value
-  if (filterType.value !== 'all') {
-    result = result.filter((a: any) => a.asset_type === filterType.value)
-  }
-  const q = searchQuery.value.toLowerCase()
-  if (q) {
-    result = result.filter(
-      (a: any) => a.symbol?.toLowerCase().includes(q) || a.name?.toLowerCase().includes(q),
-    )
-  }
-  return result
-})
-
-onMounted(async () => {
-  try {
-    assets.value = await getAssets()
-    // Auto-select first asset for chart
-    if (assets.value.length) {
-      selectAsset(assets.value[0])
-    }
-  } catch {
-    // silent
-  } finally {
-    loading.value = false
-  }
-  await loadSpotlightData()
-  startSpotlightCycle()
-  refreshTimer = setInterval(async () => {
-    try {
-      assets.value = await getAssets()
+      this.assets = await getAssets()
+      if (this.assets.length) {
+        this.selectAsset(this.assets[0])
+      }
     } catch {
       // silent
+    } finally {
+      this.loading = false
     }
-  }, 30000)
-})
-
-onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
-  stopSpotlightCycle()
-})
-
-// Inline chart
-const chartWidth = 700
-const chartHeight = 260
-const chartPadding = 40
-
-const chartPriceChange = computed(() => {
-  const pts = selectedPrices.value
-  if (pts.length < 2) return 0
-  return pts[pts.length - 1].price - pts[0].price
-})
-
-const chartPriceChangePercent = computed(() => {
-  const pts = selectedPrices.value
-  if (pts.length < 2 || pts[0].price === 0) return '0.0'
-  return (((pts[pts.length - 1].price - pts[0].price) / pts[0].price) * 100).toFixed(2)
-})
-
-const chartSummaryStats = computed(() => {
-  const pts = selectedPrices.value
-  if (!pts.length) {
-    return {
-      open: 0,
-      high: 0,
-      low: 0,
-      spreadPct: '0.00',
-    }
-  }
-
-  const prices = pts.map((p: any) => p.price)
-  const open = pts[0]?.price ?? 0
-  const high = Math.max(...prices)
-  const low = Math.min(...prices)
-  const spreadPct = open === 0 ? '0.00' : (((high - low) / open) * 100).toFixed(2)
-
-  return {
-    open,
-    high,
-    low,
-    spreadPct,
-  }
-})
-
-// Chart tooltip ref (from PriceChart component)
-const mainChartRef = ref<InstanceType<typeof PriceChart> | null>(null)
-const mainChartTooltip = computed(
-  () =>
-    mainChartRef.value?.tooltip ?? {
-      show: false,
-      x: 0,
-      y: 0,
-      price: 0,
-      date: '',
-      change: 0,
-      changePct: '0',
+    await this.loadSpotlightData()
+    this.startSpotlightCycle()
+    this.refreshTimer = setInterval(async () => {
+      try {
+        this.assets = await getAssets()
+      } catch {
+        // silent
+      }
+    }, 30000)
+  },
+  unmounted() {
+    if (this.refreshTimer) clearInterval(this.refreshTimer)
+    this.stopSpotlightCycle()
+  },
+  methods: {
+    async loadSpotlightData() {
+      const pool =
+        this.spotlightFilterType === 'all'
+          ? this.assets
+          : this.assets.filter((a: any) => a.asset_type === this.spotlightFilterType)
+      const picked = pool.slice(0, 5)
+      this.spotlightAssets = picked
+      this.spotlightIndex = 0
+      this.spotlightLoading = true
+      const priceMap: Record<string, any[]> = {}
+      for (const a of picked) {
+        try {
+          priceMap[a.asset_id] = await getPriceHistory(a.asset_id, '24h')
+        } catch {
+          priceMap[a.asset_id] = []
+        }
+      }
+      this.spotlightPrices = priceMap
+      this.spotlightLoading = false
     },
-)
-
-async function selectAsset(asset: any) {
-  selectedAsset.value = asset
-  await loadPriceData()
-}
-
-function onAssetHover(asset: any) {
-  selectAsset(asset)
-}
-
-async function loadPriceData() {
-  if (!selectedAsset.value) return
-  chartLoading.value = true
-  try {
-    selectedPrices.value = await getPriceHistory(selectedAsset.value.asset_id, selectedRange.value)
-  } catch {
-    selectedPrices.value = []
-  } finally {
-    chartLoading.value = false
-  }
-}
-
-watch(selectedRange, () => {
-  if (selectedAsset.value) loadPriceData()
+    startSpotlightCycle() {
+      this.stopSpotlightCycle()
+      this.spotlightTimer = setInterval(() => {
+        if (!this.spotlightPaused && this.spotlightAssets.length > 1) {
+          this.spotlightIndex = (this.spotlightIndex + 1) % this.spotlightAssets.length
+        }
+      }, 5000)
+    },
+    stopSpotlightCycle() {
+      if (this.spotlightTimer) clearInterval(this.spotlightTimer)
+    },
+    selectSpotlight(idx: number) {
+      this.spotlightIndex = idx
+    },
+    toggleSpotlightPause() {
+      this.spotlightPaused = !this.spotlightPaused
+    },
+    async selectAsset(asset: any) {
+      this.selectedAsset = asset
+      await this.loadPriceData()
+    },
+    onAssetHover(asset: any) {
+      this.selectAsset(asset)
+    },
+    async loadPriceData() {
+      if (!this.selectedAsset) return
+      this.chartLoading = true
+      try {
+        this.selectedPrices = await getPriceHistory(this.selectedAsset.asset_id, this.selectedRange)
+      } catch {
+        this.selectedPrices = []
+      } finally {
+        this.chartLoading = false
+      }
+    },
+    formatCurrency(n: number) {
+      return n.toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
+    },
+  },
 })
-
-function formatCurrency(n: number) {
-  return n.toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
-}
 </script>
 
 <template>

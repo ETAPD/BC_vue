@@ -1,193 +1,181 @@
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+<script lang="ts">
+import { defineComponent, type PropType } from 'vue'
 import { checkIsAdmin, getDbUser } from '../composables/useDashboard'
-import { signOut, getUser } from '../composables/useAuth'
+import { signOut } from '../composables/useAuth'
 import { supabase } from '../lib/supabase'
 
-const router = useRouter()
-const route = useRoute()
-
-const props = defineProps<{
-  userName?: string
-  userInitials?: string
-  userEmail?: string
-  userProfilePicture?: string
-}>()
-
-/* Fallback user data if not passed as props */
-const localName = ref(props.userName || '')
-const localInitials = ref(props.userInitials || '')
-const localEmail = ref(props.userEmail || '')
-const localProfilePicture = ref(props.userProfilePicture || '')
-const isAdmin = ref(false)
-const showProfileMenu = ref(false)
-
-/* Notification state */
-const showNotifications = ref(false)
-const notifications = ref<any[]>([])
-const unreadCount = computed(() => notifications.value.filter((n) => !n.read).length)
-
-const displayName = computed(() => props.userName || localName.value || 'User')
-const displayInitials = computed(() => props.userInitials || localInitials.value || 'U')
-const displayEmail = computed(() => props.userEmail || localEmail.value || '')
-const displayPicture = computed(() => props.userProfilePicture || localProfilePicture.value || '')
-
-const navLinks = [
-  { path: '/dashboard', label: 'Dashboard' },
-  { path: '/markets', label: 'Trhy' },
-  { path: '/history', label: 'História' },
-]
-
-function isActive(path: string) {
-  return route.path === path
-}
-
-function toggleProfileMenu() {
-  showProfileMenu.value = !showProfileMenu.value
-  if (showProfileMenu.value) showNotifications.value = false
-}
-
-function toggleNotifications() {
-  showNotifications.value = !showNotifications.value
-  if (showNotifications.value) showProfileMenu.value = false
-}
-
-function goToProfile() {
-  showProfileMenu.value = false
-  router.push('/profile')
-}
-
-function goToHistory() {
-  showProfileMenu.value = false
-  router.push('/history')
-}
-
-function goToSupport() {
-  showProfileMenu.value = false
-  router.push('/support')
-}
-
-function goToAdmin() {
-  showProfileMenu.value = false
-  router.push('/admin')
-}
-
-async function handleSignOut() {
-  showProfileMenu.value = false
-  await signOut()
-  router.push('/login')
-}
-
-function markAsRead(id: number) {
-  const n = notifications.value.find((n) => n.id === id)
-  if (n) n.read = true
-  saveNotifications()
-}
-
-function markAllRead() {
-  notifications.value.forEach((n) => (n.read = true))
-  saveNotifications()
-}
-
-/* Persist notifications in localStorage keyed by user email */
-function loadNotifications() {
-  try {
-    const key = `notifications_${displayEmail.value}`
-    const raw = localStorage.getItem(key)
-    if (raw) notifications.value = JSON.parse(raw)
-  } catch {
-    /* ignore */
-  }
-}
-
-function saveNotifications() {
-  try {
-    const key = `notifications_${displayEmail.value}`
-    localStorage.setItem(key, JSON.stringify(notifications.value))
-  } catch {
-    /* ignore */
-  }
-}
-
-function addNotification(title: string, message: string) {
-  notifications.value.unshift({
-    id: Date.now(),
-    title,
-    message,
-    time: new Date().toISOString(),
-    read: false,
-  })
-  if (notifications.value.length > 50) notifications.value.pop()
-  saveNotifications()
-}
-
-/* Login notification */
-onMounted(async () => {
-  if (!props.userName) {
-    try {
-      const dbUser = await getDbUser()
-      if (dbUser) {
-        localName.value = dbUser.full_name || dbUser.email?.split('@')[0] || 'User'
-        localInitials.value = dbUser.initials || localName.value.substring(0, 2).toUpperCase()
-        localEmail.value = dbUser.email || ''
-        localProfilePicture.value = dbUser.profile_picture || ''
-      }
-    } catch {
-      /* silent */
+export default defineComponent({
+  name: 'AppNavbar',
+  props: {
+    userName: { type: String as PropType<string>, default: undefined },
+    userInitials: { type: String as PropType<string>, default: undefined },
+    userEmail: { type: String as PropType<string>, default: undefined },
+    userProfilePicture: { type: String as PropType<string>, default: undefined },
+  },
+  data() {
+    return {
+      localName: this.userName || '',
+      localInitials: this.userInitials || '',
+      localEmail: this.userEmail || '',
+      localProfilePicture: this.userProfilePicture || '',
+      isAdmin: false,
+      showProfileMenu: false,
+      showNotifications: false,
+      notifications: [] as any[],
+      realtimeSub: null as any,
+      navLinks: [
+        { path: '/dashboard', label: 'Dashboard' },
+        { path: '/markets', label: 'Trhy' },
+        { path: '/history', label: 'História' },
+      ],
     }
-  }
-  checkIsAdmin().then((v) => (isAdmin.value = v))
-
-  loadNotifications()
-
-  /* Check if this is a fresh login — add welcome notification */
-  const loginKey = `last_login_notif_${displayEmail.value}`
-  const lastNotif = localStorage.getItem(loginKey)
-  const now = Date.now()
-  if (!lastNotif || now - Number(lastNotif) > 60000) {
-    addNotification('Vitajte späť!', `Prihlásili ste sa o ${new Date().toLocaleTimeString()}`)
-    localStorage.setItem(loginKey, String(now))
-  }
-})
-
-/* Listen for order fill events from supabase realtime (trades insert) */
-let realtimeSub: any = null
-
-onMounted(() => {
-  realtimeSub = supabase
-    .channel('navbar-trades')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'trades' },
-      (payload: any) => {
-        const t = payload.new
-        if (t) {
-          addNotification(
-            `Príkaz vykonaný: ${t.trade_type} ${t.symbol}`,
-            `${t.amount} @ $${Number(t.price).toFixed(2)}`,
-          )
+  },
+  computed: {
+    unreadCount(): number {
+      return this.notifications.filter((n) => !n.read).length
+    },
+    displayName(): string {
+      return this.userName || this.localName || 'User'
+    },
+    displayInitials(): string {
+      return this.userInitials || this.localInitials || 'U'
+    },
+    displayEmail(): string {
+      return this.userEmail || this.localEmail || ''
+    },
+    displayPicture(): string {
+      return this.userProfilePicture || this.localProfilePicture || ''
+    },
+  },
+  async mounted() {
+    if (!this.userName) {
+      try {
+        const dbUser = await getDbUser()
+        if (dbUser) {
+          this.localName = dbUser.full_name || dbUser.email?.split('@')[0] || 'User'
+          this.localInitials = dbUser.initials || this.localName.substring(0, 2).toUpperCase()
+          this.localEmail = dbUser.email || ''
+          this.localProfilePicture = dbUser.profile_picture || ''
         }
-      },
-    )
-    .subscribe()
+      } catch {
+        /* silent */
+      }
+    }
+    checkIsAdmin().then((v) => (this.isAdmin = v))
+    this.loadNotifications()
+    const loginKey = `last_login_notif_${this.displayEmail}`
+    const lastNotif = localStorage.getItem(loginKey)
+    const now = Date.now()
+    if (!lastNotif || now - Number(lastNotif) > 60000) {
+      this.addNotification(
+        'Vitajte späť!',
+        `Prihlásili ste sa o ${new Date().toLocaleTimeString()}`,
+      )
+      localStorage.setItem(loginKey, String(now))
+    }
+
+    this.realtimeSub = supabase
+      .channel('navbar-trades')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'trades' },
+        (payload: any) => {
+          const t = payload.new
+          if (t) {
+            this.addNotification(
+              `Príkaz vykonaný: ${t.trade_type} ${t.symbol}`,
+              `${t.amount} @ $${Number(t.price).toFixed(2)}`,
+            )
+          }
+        },
+      )
+      .subscribe()
+
+    document.addEventListener('click', this.handleOutsideClick)
+  },
+  unmounted() {
+    if (this.realtimeSub) supabase.removeChannel(this.realtimeSub)
+    document.removeEventListener('click', this.handleOutsideClick)
+  },
+  methods: {
+    isActive(path: string) {
+      return this.$route.path === path
+    },
+    toggleProfileMenu() {
+      this.showProfileMenu = !this.showProfileMenu
+      if (this.showProfileMenu) this.showNotifications = false
+    },
+    toggleNotifications() {
+      this.showNotifications = !this.showNotifications
+      if (this.showNotifications) this.showProfileMenu = false
+    },
+    goToProfile() {
+      this.showProfileMenu = false
+      this.$router.push('/profile')
+    },
+    goToHistory() {
+      this.showProfileMenu = false
+      this.$router.push('/history')
+    },
+    goToSupport() {
+      this.showProfileMenu = false
+      this.$router.push('/support')
+    },
+    goToAdmin() {
+      this.showProfileMenu = false
+      this.$router.push('/admin')
+    },
+    async handleSignOut() {
+      this.showProfileMenu = false
+      await signOut()
+      this.$router.push('/login')
+    },
+    markAsRead(id: number) {
+      const n = this.notifications.find((n) => n.id === id)
+      if (n) n.read = true
+      this.saveNotifications()
+    },
+    markAllRead() {
+      this.notifications.forEach((n) => (n.read = true))
+      this.saveNotifications()
+    },
+    loadNotifications() {
+      try {
+        const key = `notifications_${this.displayEmail}`
+        const raw = localStorage.getItem(key)
+        if (raw) this.notifications = JSON.parse(raw)
+      } catch {
+        /* ignore */
+      }
+    },
+    saveNotifications() {
+      try {
+        const key = `notifications_${this.displayEmail}`
+        localStorage.setItem(key, JSON.stringify(this.notifications))
+      } catch {
+        /* ignore */
+      }
+    },
+    addNotification(title: string, message: string) {
+      this.notifications.unshift({
+        id: Date.now(),
+        title,
+        message,
+        time: new Date().toISOString(),
+        read: false,
+      })
+      if (this.notifications.length > 50) this.notifications.pop()
+      this.saveNotifications()
+    },
+    handleOutsideClick(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (!target.closest('.nav-user-section')) {
+        this.showProfileMenu = false
+        this.showNotifications = false
+      }
+    },
+  },
 })
-
-onUnmounted(() => {
-  if (realtimeSub) supabase.removeChannel(realtimeSub)
-})
-
-/* Close menus on outside click */
-function handleOutsideClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (!target.closest('.nav-user-section')) {
-    showProfileMenu.value = false
-    showNotifications.value = false
-  }
-}
-
-onMounted(() => document.addEventListener('click', handleOutsideClick))
-onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
 </script>
 
 <template>

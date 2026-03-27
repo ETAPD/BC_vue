@@ -1,105 +1,102 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { signUp } from '../composables/useAuth'
 
-const router = useRouter()
-
-const step = ref(1)
-const form = ref({
-  email: '',
-  name: '',
-  password: '',
-  confirmPassword: '',
-  phone: '',
-  country: '',
-  agreeTerms: false,
+export default defineComponent({
+  name: 'RegisterView',
+  data() {
+    return {
+      step: 1,
+      form: {
+        email: '',
+        name: '',
+        password: '',
+        confirmPassword: '',
+        phone: '',
+        country: '',
+        agreeTerms: false,
+      },
+      error: '',
+      loading: false,
+      success: false,
+    }
+  },
+  computed: {
+    stepTitle(): string {
+      if (this.step === 1) return 'Začnite'
+      if (this.step === 2) return 'Zabezpečte si účet'
+      return 'Osobné údaje'
+    },
+    stepSubtitle(): string {
+      if (this.step === 1) return 'Zadajte svoj e-mail pre začiatok'
+      if (this.step === 2) return 'Vytvorte si silné heslo'
+      return 'Povedzte nám niečo o sebe'
+    },
+  },
+  methods: {
+    validateEmail(email: string) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    },
+    nextStep() {
+      this.error = ''
+      if (this.step === 1) {
+        if (!this.form.email.trim()) {
+          this.error = 'E-mail je povinný.'
+          return
+        }
+        if (!this.validateEmail(this.form.email)) {
+          this.error = 'Zadajte platnú e-mailovú adresu.'
+          return
+        }
+        this.step = 2
+      } else if (this.step === 2) {
+        if (this.form.password.length < 8) {
+          this.error = 'Heslo musí mať aspoň 8 znakov.'
+          return
+        }
+        if (this.form.password !== this.form.confirmPassword) {
+          this.error = 'Heslá sa nezhodujú.'
+          return
+        }
+        this.step = 3
+      }
+    },
+    prevStep() {
+      this.error = ''
+      if (this.step > 1) this.step--
+    },
+    async handleRegister() {
+      this.error = ''
+      if (!this.form.name.trim()) {
+        this.error = 'Celé meno je povinné.'
+        return
+      }
+      if (!this.form.agreeTerms) {
+        this.error = 'Musíte súhlasiť s Podmienkami používania.'
+        return
+      }
+      this.loading = true
+      try {
+        const data = await signUp(
+          this.form.email,
+          this.form.password,
+          this.form.name,
+          this.form.phone || undefined,
+          this.form.country || undefined,
+        )
+        if (data.session) {
+          this.$router.push('/dashboard')
+        } else {
+          this.success = true
+        }
+      } catch (err: any) {
+        this.error = err.message || 'Registrácia zlyhala. Skúste to znova.'
+      } finally {
+        this.loading = false
+      }
+    },
+  },
 })
-const error = ref('')
-const loading = ref(false)
-const success = ref(false)
-
-const stepTitle = computed(() => {
-  if (step.value === 1) return 'Začnite'
-  if (step.value === 2) return 'Zabezpečte si účet'
-  return 'Osobné údaje'
-})
-
-const stepSubtitle = computed(() => {
-  if (step.value === 1) return 'Zadajte svoj e-mail pre začiatok'
-  if (step.value === 2) return 'Vytvorte si silné heslo'
-  return 'Povedzte nám niečo o sebe'
-})
-
-function validateEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
-
-function nextStep() {
-  error.value = ''
-
-  if (step.value === 1) {
-    if (!form.value.email.trim()) {
-      error.value = 'E-mail je povinný.'
-      return
-    }
-    if (!validateEmail(form.value.email)) {
-      error.value = 'Zadajte platnú e-mailovú adresu.'
-      return
-    }
-    step.value = 2
-  } else if (step.value === 2) {
-    if (form.value.password.length < 8) {
-      error.value = 'Heslo musí mať aspoň 8 znakov.'
-      return
-    }
-    if (form.value.password !== form.value.confirmPassword) {
-      error.value = 'Heslá sa nezhodujú.'
-      return
-    }
-    step.value = 3
-  }
-}
-
-function prevStep() {
-  error.value = ''
-  if (step.value > 1) step.value--
-}
-
-async function handleRegister() {
-  error.value = ''
-
-  if (!form.value.name.trim()) {
-    error.value = 'Celé meno je povinné.'
-    return
-  }
-  if (!form.value.agreeTerms) {
-    error.value = 'Musíte súhlasiť s Podmienkami používania.'
-    return
-  }
-
-  loading.value = true
-
-  try {
-    const data = await signUp(
-      form.value.email,
-      form.value.password,
-      form.value.name,
-      form.value.phone || undefined,
-      form.value.country || undefined,
-    )
-
-    if (data.session) {
-      router.push('/dashboard')
-    } else {
-      success.value = true
-    }
-  } catch (err: any) {
-    error.value = err.message || 'Registrácia zlyhala. Skúste to znova.'
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <template>

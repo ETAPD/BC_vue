@@ -1,43 +1,51 @@
-<script setup lang="ts">
-const stats = [
-  { value: '99,9%', label: 'Dostupnosť' },
-  { value: '<10ms', label: 'Vykonanie' },
-  { value: '50K+', label: 'Obchodníci' },
-  { value: '24/7', label: 'Trhy' },
-]
+<script lang="ts">
+import { defineComponent } from 'vue'
 
-const features = [
-  {
-    icon: '\u{1F4C8}',
-    title: 'Grafy v reálnom čase',
-    desc: 'Pokročilé sviečkové grafy s technickými indikátormi, nástrojmi na kreslenie a viacčasovou analýzou.',
+export default defineComponent({
+  name: 'FeaturesSection',
+  data() {
+    return {
+      stats: [
+        { value: '99,9%', label: 'Dostupnosť' },
+        { value: '<10ms', label: 'Vykonanie' },
+        { value: '50K+', label: 'Obchodníci' },
+        { value: '24/7', label: 'Trhy' },
+      ],
+      features: [
+        {
+          icon: '📈',
+          title: 'Grafy v reálnom čase',
+          desc: 'Pokročilé sviečkové grafy s technickými indikátormi, nástrojmi na kreslenie a viacčasovou analýzou.',
+        },
+        {
+          icon: '💰',
+          title: 'Nákup / Predaj',
+          desc: 'Trhové, limitné a stop príkazy s okamžitým vykonaním. Spravujte pozície jedným kliknutím.',
+        },
+        {
+          icon: '👀',
+          title: 'Inteligentný sledovací zoznam',
+          desc: 'Sledujte obľúbené aktíva s vlastnými upozorneniami, cenovými cieľmi a notifikáciami v reálnom čase.',
+        },
+        {
+          icon: '🔒',
+          title: 'Bezpečné účty',
+          desc: 'Dvojfaktorová autentifikácia, šifrované dáta a podniková úroveň zabezpečenia pre vaše prostriedky.',
+        },
+        {
+          icon: '👑',
+          title: 'Členské úrovne',
+          desc: 'Plány Zadarmo, Pro a Elite — od základov simulovaného obchodovania po dáta v reálnom čase, pokročilé grafy a API prístup.',
+        },
+        {
+          icon: '📊',
+          title: 'Analytika portfólia',
+          desc: 'Podrobné sledovanie zisku a straty, metriky rizík, sektorová expozícia a porovnávanie výkonnosti.',
+        },
+      ],
+    }
   },
-  {
-    icon: '\u{1F4B0}',
-    title: 'Nákup / Predaj',
-    desc: 'Trhové, limitné a stop príkazy s okamžitým vykonaním. Spravujte pozície jedným kliknutím.',
-  },
-  {
-    icon: '\u{1F440}',
-    title: 'Inteligentný sledovací zoznam',
-    desc: 'Sledujte obľúbené aktíva s vlastnými upozorneniami, cenovými cieľmi a notifikáciami v reálnom čase.',
-  },
-  {
-    icon: '\u{1F512}',
-    title: 'Bezpečné účty',
-    desc: 'Dvojfaktorová autentifikácia, šifrované dáta a podniková úroveň zabezpečenia pre vaše prostriedky.',
-  },
-  {
-    icon: '\u{1F451}',
-    title: 'Členské úrovne',
-    desc: 'Plány Zadarmo, Pro a Elite — od základov simulovaného obchodovania po dáta v reálnom čase, pokročilé grafy a API prístup.',
-  },
-  {
-    icon: '\u{1F4CA}',
-    title: 'Analytika portfólia',
-    desc: 'Podrobné sledovanie zisku a straty, metriky rizík, sektorová expozícia a porovnávanie výkonnosti.',
-  },
-]
+})
 </script>
 
 <template>

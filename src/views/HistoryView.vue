@@ -1,90 +1,99 @@
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import AppNavbar from '../components/AppNavbar.vue'
 import { getDbUser, getPortfolio, getAllTrades, getOpenOrders } from '../composables/useDashboard'
 
-const router = useRouter()
-const loading = ref(true)
-const trades = ref<any[]>([])
-const orders = ref<any[]>([])
-const filterType = ref<'all' | 'BUY' | 'SELL'>('all')
-const filterPeriod = ref<'all' | '7d' | '30d' | '90d'>('all')
-const searchQuery = ref('')
-
-onMounted(async () => {
-  try {
-    const user = await getDbUser()
-    if (!user) {
-      router.push('/login')
-      return
+export default defineComponent({
+  name: 'HistoryView',
+  components: { AppNavbar },
+  data() {
+    return {
+      loading: true,
+      trades: [] as any[],
+      orders: [] as any[],
+      filterType: 'all' as 'all' | 'BUY' | 'SELL',
+      filterPeriod: 'all' as 'all' | '7d' | '30d' | '90d',
+      searchQuery: '',
     }
-    const p = await getPortfolio(user.user_id)
-    if (!p) {
-      loading.value = false
-      return
+  },
+  computed: {
+    filteredTrades(): any[] {
+      let result = this.trades
+      if (this.filterType !== 'all') {
+        result = result.filter((t: any) => t.trade_type === this.filterType)
+      }
+      if (this.filterPeriod !== 'all') {
+        const now = Date.now()
+        const days = this.filterPeriod === '7d' ? 7 : this.filterPeriod === '30d' ? 30 : 90
+        result = result.filter(
+          (t: any) => now - new Date(t.executed_at).getTime() < days * 86400000,
+        )
+      }
+      const q = this.searchQuery.toLowerCase()
+      if (q) {
+        result = result.filter((t: any) => t.symbol?.toLowerCase().includes(q))
+      }
+      return result
+    },
+    totalBuyVolume(): number {
+      return this.filteredTrades
+        .filter((t: any) => t.trade_type === 'BUY')
+        .reduce((s: number, t: any) => s + t.price * t.amount, 0)
+    },
+    totalSellVolume(): number {
+      return this.filteredTrades
+        .filter((t: any) => t.trade_type === 'SELL')
+        .reduce((s: number, t: any) => s + t.price * t.amount, 0)
+    },
+    netPL(): number {
+      return this.totalSellVolume - this.totalBuyVolume
+    },
+    buyCount(): number {
+      return this.filteredTrades.filter((t: any) => t.trade_type === 'BUY').length
+    },
+    sellCount(): number {
+      return this.filteredTrades.filter((t: any) => t.trade_type === 'SELL').length
+    },
+  },
+  async mounted() {
+    try {
+      const user = await getDbUser()
+      if (!user) {
+        this.$router.push('/login')
+        return
+      }
+      const p = await getPortfolio(user.user_id)
+      if (!p) {
+        this.loading = false
+        return
+      }
+      const [t, o] = await Promise.all([
+        getAllTrades(p.portfolio_id),
+        getOpenOrders(p.portfolio_id),
+      ])
+      this.trades = t
+      this.orders = o
+    } catch {
+      // silent
+    } finally {
+      this.loading = false
     }
-    const [t, o] = await Promise.all([getAllTrades(p.portfolio_id), getOpenOrders(p.portfolio_id)])
-    trades.value = t
-    orders.value = o
-  } catch {
-    // silent
-  } finally {
-    loading.value = false
-  }
+  },
+  methods: {
+    formatCurrency(n: number) {
+      return n.toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
+    },
+    formatDate(d: string) {
+      return new Date(d).toLocaleDateString('sk-SK', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    },
+  },
 })
-
-const filteredTrades = computed(() => {
-  let result = trades.value
-  if (filterType.value !== 'all') {
-    result = result.filter((t: any) => t.trade_type === filterType.value)
-  }
-  if (filterPeriod.value !== 'all') {
-    const now = Date.now()
-    const days = filterPeriod.value === '7d' ? 7 : filterPeriod.value === '30d' ? 30 : 90
-    result = result.filter((t: any) => now - new Date(t.executed_at).getTime() < days * 86400000)
-  }
-  const q = searchQuery.value.toLowerCase()
-  if (q) {
-    result = result.filter((t: any) => t.symbol?.toLowerCase().includes(q))
-  }
-  return result
-})
-
-const totalBuyVolume = computed(() =>
-  filteredTrades.value
-    .filter((t: any) => t.trade_type === 'BUY')
-    .reduce((s: number, t: any) => s + t.price * t.amount, 0),
-)
-
-const totalSellVolume = computed(() =>
-  filteredTrades.value
-    .filter((t: any) => t.trade_type === 'SELL')
-    .reduce((s: number, t: any) => s + t.price * t.amount, 0),
-)
-
-const netPL = computed(() => totalSellVolume.value - totalBuyVolume.value)
-
-const buyCount = computed(
-  () => filteredTrades.value.filter((t: any) => t.trade_type === 'BUY').length,
-)
-const sellCount = computed(
-  () => filteredTrades.value.filter((t: any) => t.trade_type === 'SELL').length,
-)
-
-function formatCurrency(n: number) {
-  return n.toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('sk-SK', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 </script>
 
 <template>

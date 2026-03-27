@@ -1,25 +1,33 @@
-<script setup lang="ts">
-const team = [
-  { name: 'Alex Carter', role: 'CEO a zakladateľ', initials: 'AC' },
-  { name: 'Sarah Kim', role: 'Vedúca obchodovania', initials: 'SK' },
-  { name: 'James Liu', role: 'CTO', initials: 'JL' },
-  { name: 'Maya Patel', role: 'Hlavná kvantitatívna analytička', initials: 'MP' },
-]
+<script lang="ts">
+import { defineComponent } from 'vue'
 
-const values = [
-  {
-    title: 'Transparentnosť',
-    desc: 'Žiadne skryté poplatky, žiadne navýšenie spreadov. Čo vidíte, s tým obchodujete.',
+export default defineComponent({
+  name: 'AboutSection',
+  data() {
+    return {
+      team: [
+        { name: 'Alex Carter', role: 'CEO a zakladateľ', initials: 'AC' },
+        { name: 'Sarah Kim', role: 'Vedúca obchodovania', initials: 'SK' },
+        { name: 'James Liu', role: 'CTO', initials: 'JL' },
+        { name: 'Maya Patel', role: 'Hlavná kvantitatívna analytička', initials: 'MP' },
+      ],
+      values: [
+        {
+          title: 'Transparentnosť',
+          desc: 'Žiadne skryté poplatky, žiadne navýšenie spreadov. Čo vidíte, s tým obchodujete.',
+        },
+        {
+          title: 'Rýchlosť',
+          desc: 'Sub-milisekundové smerovanie príkazov a dátové toky v reálnom čase na všetkých trhoch.',
+        },
+        {
+          title: 'Bezpečnosť',
+          desc: 'Bankové šifrovanie, studené úložisko a regulačný súlad po celom svete.',
+        },
+      ],
+    }
   },
-  {
-    title: 'Rýchlosť',
-    desc: 'Sub-milisekundové smerovanie príkazov a dátové toky v reálnom čase na všetkých trhoch.',
-  },
-  {
-    title: 'Bezpečnosť',
-    desc: 'Bankové šifrovanie, studené úložisko a regulačný súlad po celom svete.',
-  },
-]
+})
 </script>
 
 <template>

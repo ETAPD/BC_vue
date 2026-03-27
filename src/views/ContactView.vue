@@ -1,41 +1,47 @@
-<script setup lang="ts">
-import { ref } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { submitContactMessage } from '../composables/useDashboard'
 
-const form = ref({
-  name: '',
-  email: '',
-  subject: '',
-  message: '',
+export default defineComponent({
+  name: 'ContactView',
+  data() {
+    return {
+      form: {
+        name: '',
+        email: '',
+        subject: '',
+        message: '',
+      },
+      submitted: false,
+      loading: false,
+      error: '',
+    }
+  },
+  methods: {
+    async handleSubmit() {
+      this.error = ''
+      this.loading = true
+      try {
+        await submitContactMessage({
+          name: this.form.name.trim(),
+          email: this.form.email.trim(),
+          subject: this.form.subject.trim(),
+          message: this.form.message.trim(),
+        })
+        this.submitted = true
+      } catch (e: any) {
+        this.error = e.message || 'Failed to send message. Please try again.'
+      } finally {
+        this.loading = false
+      }
+    },
+    resetForm() {
+      this.submitted = false
+      this.error = ''
+      this.form = { name: '', email: '', subject: '', message: '' }
+    },
+  },
 })
-
-const submitted = ref(false)
-const loading = ref(false)
-const error = ref('')
-
-async function handleSubmit() {
-  error.value = ''
-  loading.value = true
-  try {
-    await submitContactMessage({
-      name: form.value.name.trim(),
-      email: form.value.email.trim(),
-      subject: form.value.subject.trim(),
-      message: form.value.message.trim(),
-    })
-    submitted.value = true
-  } catch (e: any) {
-    error.value = e.message || 'Failed to send message. Please try again.'
-  } finally {
-    loading.value = false
-  }
-}
-
-function resetForm() {
-  submitted.value = false
-  error.value = ''
-  form.value = { name: '', email: '', subject: '', message: '' }
-}
 </script>
 
 <template>

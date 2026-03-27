@@ -1,30 +1,34 @@
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { signIn } from '../composables/useAuth'
 
-const router = useRouter()
-
-const form = ref({
-  email: '',
-  password: '',
+export default defineComponent({
+  name: 'LoginView',
+  data() {
+    return {
+      form: {
+        email: '',
+        password: '',
+      },
+      error: '',
+      loading: false,
+    }
+  },
+  methods: {
+    async handleLogin() {
+      this.error = ''
+      this.loading = true
+      try {
+        await signIn(this.form.email, this.form.password)
+        this.$router.push('/dashboard')
+      } catch (err: any) {
+        this.error = err.message || 'Nesprávny e-mail alebo heslo.'
+      } finally {
+        this.loading = false
+      }
+    },
+  },
 })
-const error = ref('')
-const loading = ref(false)
-
-async function handleLogin() {
-  error.value = ''
-  loading.value = true
-
-  try {
-    await signIn(form.value.email, form.value.password)
-    router.push('/dashboard')
-  } catch (err: any) {
-    error.value = err.message || 'Nesprávny e-mail alebo heslo.'
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <template>

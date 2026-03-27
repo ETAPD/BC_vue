@@ -1,16 +1,24 @@
-<script setup lang="ts">
-import { ref } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 
-const form = ref({ name: '', email: '', subject: '', message: '' })
-const submitted = ref(false)
-
-function handleSubmit() {
-  submitted.value = true
-}
-function resetForm() {
-  submitted.value = false
-  form.value = { name: '', email: '', subject: '', message: '' }
-}
+export default defineComponent({
+  name: 'ContactSection',
+  data() {
+    return {
+      form: { name: '', email: '', subject: '', message: '' },
+      submitted: false,
+    }
+  },
+  methods: {
+    handleSubmit() {
+      this.submitted = true
+    },
+    resetForm() {
+      this.submitted = false
+      this.form = { name: '', email: '', subject: '', message: '' }
+    },
+  },
+})
 </script>
 
 <template>
