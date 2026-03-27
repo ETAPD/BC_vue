@@ -10,7 +10,7 @@
         v-for="n in notifications"
         :key="n.id"
         :class="['notif-item', { 'notif-item--unread': !n.is_read }]"
-        @click="$emit('read', n)"
+        @click="emit('read', n)"
       >
         <div v-if="!n.is_read" class="notif-dot"></div>
         <div class="notif-content">
@@ -25,35 +25,30 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: 'AdminNotificationsPanel',
-  props: {
-    notifications: {
-      type: Array,
-      default() {
-        return []
-      },
-    },
-  },
-  emits: ['read'],
-  computed: {
-    unreadCount() {
-      return this.notifications.filter((item) => !item.is_read).length
-    },
-  },
-  methods: {
-    timeAgo(dateStr) {
-      if (!dateStr) return '—'
-      const diff = Date.now() - new Date(dateStr).getTime()
-      const mins = Math.floor(diff / 60000)
-      if (mins < 1) return 'Práve teraz'
-      if (mins < 60) return `pred ${mins} min`
-      const hrs = Math.floor(mins / 60)
-      if (hrs < 24) return `pred ${hrs} hod`
-      return `pred ${Math.floor(hrs / 24)} d`
-    },
-  },
+<script setup lang="ts">
+import { computed } from 'vue'
+
+const props = defineProps<{
+  notifications?: any[]
+}>()
+
+const emit = defineEmits<{
+  read: [n: any]
+}>()
+
+const unreadCount = computed(() => {
+  return (props.notifications ?? []).filter((item: any) => !item.is_read).length
+})
+
+function timeAgo(dateStr: any) {
+  if (!dateStr) return '—'
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Práve teraz'
+  if (mins < 60) return `pred ${mins} min`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `pred ${hrs} hod`
+  return `pred ${Math.floor(hrs / 24)} d`
 }
 </script>
 

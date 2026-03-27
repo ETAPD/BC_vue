@@ -26,7 +26,7 @@
         }}</span>
         <button
           class="remove-btn"
-          @click="$emit('remove', item.watchlist_item_id)"
+          @click="emit('remove', item.watchlist_item_id)"
           title="Odstrániť"
         >
           ✕
@@ -37,76 +37,70 @@
   </section>
 </template>
 
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 
-interface WatchlistItem {
-  watchlist_item_id: number
-  symbol: string
-  current_price: number
-  change_percent: number
+const props = defineProps<{
+  assets: any[]
+  watchlist: any[]
+  maxWatchlist?: number
+  formatCurrency: (value: number, currency?: string) => string
+}>()
+
+const emit = defineEmits<{
+  (e: 'add', symbol: string): void
+  (e: 'remove', id: number): void
+}>()
+
+const showAdd = ref(false)
+const selectedSymbol = ref('')
+const localError = ref('')
+
+const usedSymbols = computed(() => {
+  return props.watchlist.map((item: any) => String(item.symbol || '').toUpperCase())
+})
+
+const availableAssets = computed(() => {
+  return props.assets.filter(
+    (asset: any) => !usedSymbols.value.includes(String(asset.symbol || '').toUpperCase()),
+  )
+})
+
+const isAtLimit = computed(() => {
+  const max = props.maxWatchlist ?? -1
+  return max !== -1 && props.watchlist.length >= max
+})
+
+function toggleAdd() {
+  if (!showAdd.value && isAtLimit.value) {
+    localError.value = `Môžete mať maximálne ${props.maxWatchlist} položiek v sledovacom zozname`
+    return
+  }
+  localError.value = ''
+  showAdd.value = !showAdd.value
+  if (showAdd.value && availableAssets.value.length && !selectedSymbol.value)
+    selectedSymbol.value = availableAssets.value[0].symbol
 }
 
-export default defineComponent({
-  name: 'WatchlistPanel',
-  emits: ['add', 'remove'],
-  props: {
-    assets: { type: Array as PropType<any[]>, default: () => [] },
-    watchlist: { type: Array as PropType<WatchlistItem[]>, default: () => [] },
-    maxWatchlist: { type: Number, default: -1 },
-    formatCurrency: { type: Function, required: true },
-  },
-  data() {
-    return {
-      showAdd: false,
-      selectedSymbol: '',
-      localError: '',
-    }
-  },
-  computed: {
-    usedSymbols(): string[] {
-      return (this.watchlist as any[]).map((item: any) => String(item.symbol || '').toUpperCase())
-    },
-    availableAssets(): any[] {
-      return (this.assets as any[]).filter(
-        (asset: any) => !this.usedSymbols.includes(String(asset.symbol || '').toUpperCase()),
-      )
-    },
-    isAtLimit(): boolean {
-      return this.maxWatchlist !== -1 && (this.watchlist as any[]).length >= this.maxWatchlist
-    },
-  },
-  methods: {
-    toggleAdd() {
-      if (!this.showAdd && this.isAtLimit) {
-        this.localError = `Môžete mať maximálne ${this.maxWatchlist} položiek v sledovacom zozname`
-        return
-      }
-      this.localError = ''
-      this.showAdd = !this.showAdd
-      if (this.showAdd && this.availableAssets.length && !this.selectedSymbol)
-        this.selectedSymbol = this.availableAssets[0].symbol
-    },
-    submitAdd() {
-      if (this.isAtLimit) {
-        this.localError = `Môžete mať maximálne ${this.maxWatchlist} položiek v sledovacom zozname`
-        return
-      }
-      if (!this.selectedSymbol) {
-        this.localError = 'Vyberte aktívum'
-        return
-      }
-      this.localError = ''
-      this.$emit('add', this.selectedSymbol)
-      this.selectedSymbol = ''
-      this.showAdd = false
-    },
-    formatPercent(value: number | string) {
-      const numeric = Number(value || 0)
-      return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}%`
-    },
-  },
-})
+function submitAdd() {
+  if (isAtLimit.value) {
+    localError.value = `Môžete mať maximálne ${props.maxWatchlist} položiek v sledovacom zozname`
+    return
+  }
+  if (!selectedSymbol.value) {
+    localError.value = 'Vyberte aktívum'
+    return
+  }
+  localError.value = ''
+  emit('add', selectedSymbol.value)
+  selectedSymbol.value = ''
+  showAdd.value = false
+}
+
+function formatPercent(value: number | string) {
+  const numeric = Number(value || 0)
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}%`
+}
 </script>
 
 <style></style>

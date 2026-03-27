@@ -1,140 +1,147 @@
 <template>
   <teleport to="body">
     <div v-if="open && localUser" class="manage-modal-overlay" @click.self="handleClose">
-    <div class="manage-modal-card" @click.stop>
-      <header class="manage-modal-header">
-        <div>
-          <p class="manage-modal-kicker">Administrácia</p>
-          <h3>Upraviť používateľa</h3>
-          <p class="manage-modal-subtitle">
-            {{ localUser.full_name || 'Používateľ' }} · {{ localUser.email || 'bez e-mailu' }}
-          </p>
-        </div>
-        <button type="button" class="manage-modal-close" @click="handleClose">✕</button>
-      </header>
+      <div class="manage-modal-card" @click.stop>
+        <header class="manage-modal-header">
+          <div>
+            <p class="manage-modal-kicker">Administrácia</p>
+            <h3>Upraviť používateľa</h3>
+            <p class="manage-modal-subtitle">
+              {{ localUser.full_name || 'Používateľ' }} · {{ localUser.email || 'bez e-mailu' }}
+            </p>
+          </div>
+          <button type="button" class="manage-modal-close" @click="handleClose">✕</button>
+        </header>
 
-      <div class="manage-modal-grid">
-        <div class="manage-field manage-field--full">
-          <label>ID používateľa</label>
-          <input type="text" :value="localUser.user_id" disabled />
+        <div class="manage-modal-grid">
+          <div class="manage-field manage-field--full">
+            <label>ID používateľa</label>
+            <input type="text" :value="localUser.user_id" disabled />
+          </div>
+
+          <div class="manage-field">
+            <label>Celé meno</label>
+            <input v-model="localUser.full_name" type="text" />
+          </div>
+
+          <div class="manage-field">
+            <label>E-mail</label>
+            <input v-model="localUser.email" type="email" />
+          </div>
+
+          <div class="manage-field">
+            <label>Preferovaná mena</label>
+            <select v-model="localUser.preferred_currency">
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="CZK">CZK</option>
+            </select>
+          </div>
+
+          <div class="manage-field">
+            <label>Stav účtu</label>
+            <select v-model="localUser.status">
+              <option value="active">Aktívny</option>
+              <option value="suspended">Pozastavený</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          <div class="manage-field">
+            <label>Členstvo</label>
+            <select v-model="localUser.role">
+              <option value="basic">Basic</option>
+              <option value="pro">Pro</option>
+              <option value="premium">Premium</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
         </div>
 
-        <div class="manage-field">
-          <label>Celé meno</label>
-          <input v-model="localUser.full_name" type="text" />
-        </div>
-
-        <div class="manage-field">
-          <label>E-mail</label>
-          <input v-model="localUser.email" type="email" />
-        </div>
-
-        <div class="manage-field">
-          <label>Preferovaná mena</label>
-          <select v-model="localUser.preferred_currency">
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="GBP">GBP</option>
-            <option value="CZK">CZK</option>
-          </select>
-        </div>
-
-        <div class="manage-field">
-          <label>Stav účtu</label>
-          <select v-model="localUser.status">
-            <option value="active">Aktívny</option>
-            <option value="suspended">Pozastavený</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
-        <div class="manage-field">
-          <label>Členstvo</label>
-          <select v-model="localUser.role">
-            <option value="basic">Basic</option>
-            <option value="pro">Pro</option>
-            <option value="premium">Premium</option>
-            <option value="admin">Admin</option>
-          </select>
+        <div class="manage-modal-actions">
+          <button
+            type="button"
+            class="manage-btn manage-btn--ghost"
+            :disabled="saving"
+            @click="handlePasswordReset"
+          >
+            Poslať reset hesla
+          </button>
+          <div class="manage-modal-actions-right">
+            <button
+              type="button"
+              class="manage-btn manage-btn--secondary"
+              :disabled="saving"
+              @click="handleClose"
+            >
+              Zrušiť
+            </button>
+            <button
+              type="button"
+              class="manage-btn manage-btn--primary"
+              :disabled="saving"
+              @click="handleSave"
+            >
+              {{ saving ? 'Ukladám…' : 'Uložiť zmeny' }}
+            </button>
+          </div>
         </div>
       </div>
-
-      <div class="manage-modal-actions">
-        <button type="button" class="manage-btn manage-btn--ghost" :disabled="saving" @click="handlePasswordReset">
-          Poslať reset hesla
-        </button>
-        <div class="manage-modal-actions-right">
-          <button type="button" class="manage-btn manage-btn--secondary" :disabled="saving" @click="handleClose">
-            Zrušiť
-          </button>
-          <button type="button" class="manage-btn manage-btn--primary" :disabled="saving" @click="handleSave">
-            {{ saving ? 'Ukladám…' : 'Uložiť zmeny' }}
-          </button>
-        </div>
-      </div>
-    </div>
     </div>
   </teleport>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
+<script setup lang="ts">
+import { ref, watch, onBeforeUnmount } from 'vue'
 
-export default defineComponent({
-  name: 'UserManageModal',
-  emits: ['close', 'save', 'password-reset'],
-  props: {
-    open: {
-      type: Boolean,
-      required: true,
-    },
-    user: {
-      type: Object as PropType<any | null>,
-      default: null,
-    },
-    saving: {
-      type: Boolean,
-      default: false,
-    },
+const props = defineProps<{
+  open: boolean
+  user: any | null
+  saving?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'save', user: any): void
+  (e: 'password-reset', email: string): void
+}>()
+
+const localUser = ref<any | null>(props.user ? { ...props.user } : null)
+
+watch(
+  () => props.user,
+  (newUser) => {
+    localUser.value = newUser ? { ...newUser } : null
   },
-  data() {
-    return {
-      localUser: this.user ? { ...this.user } : null as any | null,
-    }
+  { immediate: true, deep: true },
+)
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
   },
-  watch: {
-    user: {
-      immediate: true,
-      deep: true,
-      handler(newUser: any | null) {
-        this.localUser = newUser ? { ...newUser } : null
-      },
-    },
-    open: {
-      immediate: true,
-      handler(isOpen: boolean) {
-        document.body.style.overflow = isOpen ? 'hidden' : ''
-      },
-    },
-  },
-  beforeUnmount() {
-    document.body.style.overflow = ''
-  },
-  methods: {
-    handleClose() {
-      this.$emit('close')
-    },
-    handleSave() {
-      if (!this.localUser) return
-      this.$emit('save', { ...this.localUser })
-    },
-    handlePasswordReset() {
-      if (!this.localUser?.email) return
-      this.$emit('password-reset', this.localUser.email)
-    },
-  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
 })
+
+function handleClose() {
+  emit('close')
+}
+
+function handleSave() {
+  if (!localUser.value) return
+  emit('save', { ...localUser.value })
+}
+
+function handlePasswordReset() {
+  if (!localUser.value?.email) return
+  emit('password-reset', localUser.value.email)
+}
 </script>
 
 <style scoped>
@@ -147,8 +154,7 @@ export default defineComponent({
   justify-content: center;
   padding: 24px;
   background:
-    radial-gradient(circle at top, rgba(37, 99, 235, 0.14), transparent 34%),
-    rgba(2, 6, 23, 0.76);
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.14), transparent 34%), rgba(2, 6, 23, 0.76);
   backdrop-filter: blur(6px);
 }
 
@@ -156,8 +162,7 @@ export default defineComponent({
   width: min(760px, 100%);
   border-radius: 24px;
   border: 1px solid rgba(59, 130, 246, 0.22);
-  background:
-    linear-gradient(180deg, rgba(16, 28, 53, 0.98), rgba(8, 18, 38, 0.98));
+  background: linear-gradient(180deg, rgba(16, 28, 53, 0.98), rgba(8, 18, 38, 0.98));
   box-shadow:
     0 28px 80px rgba(0, 0, 0, 0.45),
     0 0 0 1px rgba(59, 130, 246, 0.08) inset;

@@ -1,45 +1,41 @@
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
 
-export default defineComponent({
-  name: 'HeroSection',
-  data() {
-    return {
-      portfolioValue: 0,
-      animFrame: 0,
-      targetValue: 1247835,
-      tickerItems: [
-        { symbol: 'BTC/USD', price: '67,842.50', change: '+3.24%', up: true },
-        { symbol: 'ETH/USD', price: '3,521.80', change: '+1.87%', up: true },
-        { symbol: 'AAPL', price: '189.34', change: '-0.52%', up: false },
-        { symbol: 'TSLA', price: '248.92', change: '+2.11%', up: true },
-        { symbol: 'EUR/USD', price: '1.0842', change: '-0.15%', up: false },
-        { symbol: 'GOLD', price: '2,341.60', change: '+0.78%', up: true },
-      ],
-    }
-  },
-  mounted() {
-    this.animateCounter()
-  },
-  unmounted() {
-    cancelAnimationFrame(this.animFrame)
-  },
-  methods: {
-    scrollTo(id: string) {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    },
-    animateCounter() {
-      const duration = 2000
-      const start = performance.now()
-      const step = (now: number) => {
-        const progress = Math.min((now - start) / duration, 1)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        this.portfolioValue = Math.floor(eased * this.targetValue)
-        if (progress < 1) this.animFrame = requestAnimationFrame(step)
-      }
-      this.animFrame = requestAnimationFrame(step)
-    },
-  },
+const portfolioValue = ref(0)
+let animFrame = 0
+const targetValue = 1247835
+
+const tickerItems = [
+  { symbol: 'BTC/USD', price: '67,842.50', change: '+3.24%', up: true },
+  { symbol: 'ETH/USD', price: '3,521.80', change: '+1.87%', up: true },
+  { symbol: 'AAPL', price: '189.34', change: '-0.52%', up: false },
+  { symbol: 'TSLA', price: '248.92', change: '+2.11%', up: true },
+  { symbol: 'EUR/USD', price: '1.0842', change: '-0.15%', up: false },
+  { symbol: 'GOLD', price: '2,341.60', change: '+0.78%', up: true },
+]
+
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
+function animateCounter() {
+  const duration = 2000
+  const start = performance.now()
+  const step = (now: number) => {
+    const progress = Math.min((now - start) / duration, 1)
+    const eased = 1 - Math.pow(1 - progress, 3)
+    portfolioValue.value = Math.floor(eased * targetValue)
+    if (progress < 1) animFrame = requestAnimationFrame(step)
+  }
+  animFrame = requestAnimationFrame(step)
+}
+
+onMounted(() => {
+  animateCounter()
+})
+
+onUnmounted(() => {
+  cancelAnimationFrame(animFrame)
 })
 </script>
 

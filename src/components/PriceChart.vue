@@ -1,5 +1,5 @@
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 
 type PricePoint = { price: number; recorded_at: string }
 
@@ -7,143 +7,138 @@ function at(arr: PricePoint[], i: number): PricePoint {
   return arr[i] ?? { price: 0, recorded_at: '' }
 }
 
-export default defineComponent({
-  name: 'PriceChart',
-  props: {
-    prices: {
-      type: Array as PropType<PricePoint[]>,
-      required: true,
-    },
-    width: { type: Number, default: 700 },
-    height: { type: Number, default: 260 },
-    padding: { type: Number, default: 40 },
-    gradientId: { type: String, default: 'priceChartGrad' },
-    showTooltip: { type: Boolean, default: true },
-    showGridLabels: { type: Boolean, default: true },
-    showGridLines: { type: Boolean, default: true },
-    gridLineCount: { type: Number, default: 4 },
+const props = withDefaults(
+  defineProps<{
+    prices: PricePoint[]
+    width?: number
+    height?: number
+    padding?: number
+    gradientId?: string
+    showTooltip?: boolean
+    showGridLabels?: boolean
+    showGridLines?: boolean
+    gridLineCount?: number
+  }>(),
+  {
+    width: 700,
+    height: 260,
+    padding: 40,
+    gradientId: 'priceChartGrad',
+    showTooltip: true,
+    showGridLabels: true,
+    showGridLines: true,
+    gridLineCount: 4,
   },
-  data() {
-    return {
-      tooltip: {
-        show: false,
-        x: 0,
-        y: 0,
-        price: 0,
-        date: '',
-        change: 0,
-        changePct: '0',
-      } as {
-        show: boolean
-        x: number
-        y: number
-        price: number
-        date: string
-        change: number
-        changePct: string
-      },
-    }
-  },
-  computed: {
-    priceValues(): number[] {
-      return this.prices.map((p) => p.price)
-    },
-    minPrice(): number {
-      return this.priceValues.length ? Math.min(...this.priceValues) : 0
-    },
-    maxPrice(): number {
-      return this.priceValues.length ? Math.max(...this.priceValues) : 0
-    },
-    priceChange(): number {
-      const pts = this.prices
-      if (pts.length < 2) return 0
-      return at(pts, pts.length - 1).price - at(pts, 0).price
-    },
-    priceChangePct(): string {
-      const pts = this.prices
-      if (pts.length < 2) return '0.0'
-      const first = at(pts, 0)
-      const last = at(pts, pts.length - 1)
-      if (first.price === 0) return '0.0'
-      return (((last.price - first.price) / first.price) * 100).toFixed(2)
-    },
-    chartLinePath(): string {
-      const pts = this.prices
-      if (pts.length < 2) return ''
-      const rangeP = this.maxPrice - this.minPrice || 1
-      const w = this.width - this.padding * 2
-      const h = this.height - this.padding * 2
-      return pts
-        .map((p, i) => {
-          const x = this.padding + (i / (pts.length - 1)) * w
-          const y = this.padding + h - ((p.price - this.minPrice) / rangeP) * h
-          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-        })
-        .join(' ')
-    },
-    chartAreaPath(): string {
-      if (!this.chartLinePath) return ''
-      const w = this.width - this.padding * 2
-      const lastX = this.padding + w
-      const baseY = this.height - this.padding
-      return `${this.chartLinePath} L${lastX},${baseY} L${this.padding},${baseY} Z`
-    },
-    gridLines(): { y: number; price: number; change: number; changePct: string }[] {
-      const pts = this.prices
-      if (pts.length < 2) return []
-      const h = this.height - this.padding * 2
-      const firstPrice = at(pts, 0).price
-      const lines: { y: number; price: number; change: number; changePct: string }[] = []
-      for (let i = 0; i <= this.gridLineCount; i++) {
-        const price = this.maxPrice - (i / this.gridLineCount) * (this.maxPrice - this.minPrice)
-        const y = this.padding + (i / this.gridLineCount) * h
-        const change = price - firstPrice
-        const changePct = firstPrice === 0 ? '0.0' : ((change / firstPrice) * 100).toFixed(2)
-        lines.push({ y, price, change, changePct })
-      }
-      return lines
-    },
-    strokeColor(): string {
-      return this.priceChange >= 0 ? '#22c55e' : '#ef4444'
-    },
-  },
-  methods: {
-    onMouseMove(event: MouseEvent) {
-      if (!this.showTooltip) return
-      const svg = event.currentTarget as SVGSVGElement
-      if (!svg || this.prices.length < 2) return
-      const rect = svg.getBoundingClientRect()
-      const relX = event.clientX - rect.left
-      const svgX = (relX / rect.width) * this.width
-      const w = this.width - this.padding * 2
-      let idx = Math.round(((svgX - this.padding) / w) * (this.prices.length - 1))
-      idx = Math.max(0, Math.min(this.prices.length - 1, idx))
-      const pt = at(this.prices, idx)
-      const firstPrice = at(this.prices, 0).price
-      const change = pt.price - firstPrice
-      const changePct = firstPrice === 0 ? '0.0' : ((change / firstPrice) * 100).toFixed(2)
-      const rangeP = this.maxPrice - this.minPrice || 1
-      const h = this.height - this.padding * 2
-      const px = this.padding + (idx / (this.prices.length - 1)) * w
-      const py = this.padding + h - ((pt.price - this.minPrice) / rangeP) * h
-      this.tooltip = {
-        show: true,
-        x: px,
-        y: py,
-        price: pt.price,
-        date: new Date(pt.recorded_at).toLocaleString('sk-SK'),
-        change,
-        changePct,
-      }
-    },
-    onMouseLeave() {
-      this.tooltip.show = false
-    },
-    formatCurrency(n: number) {
-      return n.toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
-    },
-  },
+)
+
+const tooltip = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  price: 0,
+  date: '',
+  change: 0,
+  changePct: '0',
 })
+
+const priceValues = computed(() => props.prices.map((p) => p.price))
+const minPrice = computed(() => (priceValues.value.length ? Math.min(...priceValues.value) : 0))
+const maxPrice = computed(() => (priceValues.value.length ? Math.max(...priceValues.value) : 0))
+
+const priceChange = computed(() => {
+  const pts = props.prices
+  if (pts.length < 2) return 0
+  return at(pts, pts.length - 1).price - at(pts, 0).price
+})
+
+const priceChangePct = computed(() => {
+  const pts = props.prices
+  if (pts.length < 2) return '0.0'
+  const first = at(pts, 0)
+  const last = at(pts, pts.length - 1)
+  if (first.price === 0) return '0.0'
+  return (((last.price - first.price) / first.price) * 100).toFixed(2)
+})
+
+const chartLinePath = computed(() => {
+  const pts = props.prices
+  if (pts.length < 2) return ''
+  const rangeP = maxPrice.value - minPrice.value || 1
+  const w = props.width - props.padding * 2
+  const h = props.height - props.padding * 2
+  return pts
+    .map((p, i) => {
+      const x = props.padding + (i / (pts.length - 1)) * w
+      const y = props.padding + h - ((p.price - minPrice.value) / rangeP) * h
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+})
+
+const chartAreaPath = computed(() => {
+  if (!chartLinePath.value) return ''
+  const w = props.width - props.padding * 2
+  const lastX = props.padding + w
+  const baseY = props.height - props.padding
+  return `${chartLinePath.value} L${lastX},${baseY} L${props.padding},${baseY} Z`
+})
+
+const gridLines = computed(() => {
+  const pts = props.prices
+  if (pts.length < 2) return []
+  const h = props.height - props.padding * 2
+  const firstPrice = at(pts, 0).price
+  const lines: { y: number; price: number; change: number; changePct: string }[] = []
+  for (let i = 0; i <= props.gridLineCount; i++) {
+    const price = maxPrice.value - (i / props.gridLineCount) * (maxPrice.value - minPrice.value)
+    const y = props.padding + (i / props.gridLineCount) * h
+    const change = price - firstPrice
+    const changePct = firstPrice === 0 ? '0.0' : ((change / firstPrice) * 100).toFixed(2)
+    lines.push({ y, price, change, changePct })
+  }
+  return lines
+})
+
+const strokeColor = computed(() => (priceChange.value >= 0 ? '#22c55e' : '#ef4444'))
+
+function onMouseMove(event: MouseEvent) {
+  if (!props.showTooltip) return
+  const svg = event.currentTarget as SVGSVGElement
+  if (!svg || props.prices.length < 2) return
+  const rect = svg.getBoundingClientRect()
+  const relX = event.clientX - rect.left
+  const svgX = (relX / rect.width) * props.width
+  const w = props.width - props.padding * 2
+  let idx = Math.round(((svgX - props.padding) / w) * (props.prices.length - 1))
+  idx = Math.max(0, Math.min(props.prices.length - 1, idx))
+  const pt = at(props.prices, idx)
+  const firstPrice = at(props.prices, 0).price
+  const change = pt.price - firstPrice
+  const changePct = firstPrice === 0 ? '0.0' : ((change / firstPrice) * 100).toFixed(2)
+  const rangeP = maxPrice.value - minPrice.value || 1
+  const h = props.height - props.padding * 2
+  const px = props.padding + (idx / (props.prices.length - 1)) * w
+  const py = props.padding + h - ((pt.price - minPrice.value) / rangeP) * h
+  tooltip.value = {
+    show: true,
+    x: px,
+    y: py,
+    price: pt.price,
+    date: new Date(pt.recorded_at).toLocaleString('sk-SK'),
+    change,
+    changePct,
+  }
+}
+
+function onMouseLeave() {
+  tooltip.value.show = false
+}
+
+function formatCurrency(n: number) {
+  return n.toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
+}
+
+defineExpose({ tooltip, priceChange, priceChangePct, minPrice, maxPrice })
 </script>
 
 <template>

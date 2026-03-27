@@ -2,7 +2,7 @@
   <section class="panel">
     <h2 class="panel-title">Bezpečnosť</h2>
     <div class="security-actions">
-      <button class="sec-btn" @click="$emit('open-password')">
+      <button class="sec-btn" @click="emit('open-password')">
         <span class="sec-icon">🔑</span>
         <div>
           <span class="sec-label">Zmeniť heslo</span>
@@ -10,7 +10,7 @@
         </div>
       </button>
 
-      <button class="sec-btn" @click="$emit('export')">
+      <button class="sec-btn" @click="emit('export')">
         <span class="sec-icon">📦</span>
         <div>
           <span class="sec-label">Exportovať dáta</span>
@@ -18,7 +18,7 @@
         </div>
       </button>
 
-      <button class="sec-btn" @click="$emit('logout')">
+      <button class="sec-btn" @click="emit('logout')">
         <span class="sec-icon">🚪</span>
         <div>
           <span class="sec-label">Odhlásiť sa</span>
@@ -26,7 +26,7 @@
         </div>
       </button>
 
-      <button class="sec-btn sec-btn--danger" @click="$emit('open-delete')">
+      <button class="sec-btn sec-btn--danger" @click="emit('open-delete')">
         <span class="sec-icon">⚠️</span>
         <div>
           <span class="sec-label">Odstrániť účet</span>
@@ -37,11 +37,13 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: 'SecurityPanel',
-  emits: ['open-password', 'export', 'logout', 'open-delete'],
-}
+<script setup lang="ts">
+const emit = defineEmits<{
+  'open-password': []
+  export: []
+  logout: []
+  'open-delete': []
+}>()
 </script>
 
 <style scoped>

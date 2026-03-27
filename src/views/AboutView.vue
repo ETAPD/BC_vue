@@ -1,33 +1,25 @@
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+const team = [
+  { name: 'Alex Carter', role: 'CEO a zakladateľ', initials: 'AC' },
+  { name: 'Sarah Kim', role: 'Hlavná dizajnérka', initials: 'SK' },
+  { name: 'James Liu', role: 'CTO', initials: 'JL' },
+  { name: 'Maya Patel', role: 'Hlavná vývojárka', initials: 'MP' },
+]
 
-export default defineComponent({
-  name: 'AboutView',
-  data() {
-    return {
-      team: [
-        { name: 'Alex Carter', role: 'CEO a zakladateľ', initials: 'AC' },
-        { name: 'Sarah Kim', role: 'Hlavná dizajnérka', initials: 'SK' },
-        { name: 'James Liu', role: 'CTO', initials: 'JL' },
-        { name: 'Maya Patel', role: 'Hlavná vývojárka', initials: 'MP' },
-      ],
-      values: [
-        {
-          title: 'Inovácia',
-          desc: 'Posúvame hranice a späť konvencie, aby sme priniesli prelomové riešenia.',
-        },
-        {
-          title: 'Kvalita',
-          desc: 'Každý riadok kódu, každý pixel je vytvorený s precíznosťou a starostlivosťou.',
-        },
-        {
-          title: 'Transparentnosť',
-          desc: 'Otvorená komunikácia a čestná spolupráca sú naším základom.',
-        },
-      ],
-    }
+const values = [
+  {
+    title: 'Inovácia',
+    desc: 'Posúvame hranice a späť konvencie, aby sme priniesli prelomové riešenia.',
   },
-})
+  {
+    title: 'Kvalita',
+    desc: 'Každý riadok kódu, každý pixel je vytvorený s precíznosťou a starostlivosťou.',
+  },
+  {
+    title: 'Transparentnosť',
+    desc: 'Otvorená komunikácia a čestná spolupráca sú naším základom.',
+  },
+]
 </script>
 
 <template>

@@ -1,87 +1,85 @@
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { useRouter } from 'vue-router'
 import NavBar from '../components/navBar.vue'
 import AboutSection from '../components/AboutSection.vue'
 import ServicesSection from '../components/ServicesSection.vue'
 import ContactSection from '../components/ContactSection.vue'
 import CommentsCarousel from '../components/CommentsCarousel.vue'
 
+const router = useRouter()
+
 type NavLink = { name: string; target: string }
 type MarketItem = { symbol: string; name: string; price: string; change: string; positive: boolean }
 type FeatureCard = { title: string; description: string; tag: string }
 type PlatformPoint = { title: string; description: string }
 
-export default defineComponent({
-  name: 'HomeView',
-  components: { NavBar, AboutSection, ServicesSection, ContactSection, CommentsCarousel },
-  data() {
-    return {
-      navLinks: [
-        { name: 'Domov', target: 'hero' },
-        { name: 'Funkcie', target: 'features' },
-        { name: 'O nás', target: 'about' },
-        { name: 'Členstvo', target: 'services' },
-        { name: 'Referencie', target: 'comments' },
-        { name: 'Kontakt', target: 'contact' },
-      ] as NavLink[],
-      marketItems: [
-        { symbol: 'AAPL', name: 'Apple', price: '$214.32', change: '+2.14%', positive: true },
-        { symbol: 'NVDA', name: 'NVIDIA', price: '$972.11', change: '+4.86%', positive: true },
-        { symbol: 'MSFT', name: 'Microsoft', price: '$441.08', change: '+1.28%', positive: true },
-        { symbol: 'TSLA', name: 'Tesla', price: '$186.49', change: '-1.18%', positive: false },
-      ] as MarketItem[],
-      featureCards: [
-        {
-          tag: 'Realtime',
-          title: 'Dáta a watchlist bez zbytočného chaosu',
-          description:
-            'Sledujte vybrané akcie, ETF aj kryptomeny na jednom mieste a majte svoje obľúbené tituly vždy po ruke.',
-        },
-        {
-          tag: 'Charting',
-          title: 'Prehľadné grafy a jasná analýza',
-          description:
-            'Pracujte s čistou vizualizáciou trendov, porovnávajte vývoj aktív a analyzujte pohyb trhu bez zbytočného rozptyľovania.',
-        },
-        {
-          tag: 'Portfolio',
-          title: 'Prehľad portfólia a výkonu v jednom toku',
-          description:
-            'Majte pod kontrolou celkovú hodnotu účtu, denný výsledok aj vývoj otvorených pozícií bez zdĺhavého prepínania.',
-        },
-      ] as FeatureCard[],
-      platformPoints: [
-        {
-          title: 'Pokročilé rozhranie',
-          description:
-            'Moderný fintech dizajn, ktorý zostáva čitateľný, prehľadný a pohodlný aj pri dlhšom používaní.',
-        },
-        {
-          title: 'Rýchla orientácia',
-          description:
-            'Hierarchia obsahu je navrhnutá tak, aby používateľ okamžite videl najdôležitejšie informácie o trhu aj portfóliu.',
-        },
-        {
-          title: 'Pripravené na dashboard',
-          description:
-            'Platformu možno ďalej rozširovať o reálne trhové dáta, nové nástroje a detailnejšie analytické prehľady.',
-        },
-      ] as PlatformPoint[],
-      heroMainImage: '/assets/img/Futures-in-Stock-Market.webp',
-      heroSecondaryImage: '/assets/img/hero-trading.png',
-      platformImage: '/assets/img/Trading-account.png',
-      splitImage: '/assets/img/chart-trading.png',
-    }
+const navLinks: NavLink[] = [
+  { name: 'Domov', target: 'hero' },
+  { name: 'Funkcie', target: 'features' },
+  { name: 'O nás', target: 'about' },
+  { name: 'Členstvo', target: 'services' },
+  { name: 'Referencie', target: 'comments' },
+  { name: 'Kontakt', target: 'contact' },
+]
+
+const marketItems: MarketItem[] = [
+  { symbol: 'AAPL', name: 'Apple', price: '$214.32', change: '+2.14%', positive: true },
+  { symbol: 'NVDA', name: 'NVIDIA', price: '$972.11', change: '+4.86%', positive: true },
+  { symbol: 'MSFT', name: 'Microsoft', price: '$441.08', change: '+1.28%', positive: true },
+  { symbol: 'TSLA', name: 'Tesla', price: '$186.49', change: '-1.18%', positive: false },
+]
+
+const featureCards: FeatureCard[] = [
+  {
+    tag: 'Realtime',
+    title: 'Dáta a watchlist bez zbytočného chaosu',
+    description:
+      'Sledujte vybrané akcie, ETF aj kryptomeny na jednom mieste a majte svoje obľúbené tituly vždy po ruke.',
   },
-  methods: {
-    goToDashboard() {
-      this.$router.push({ name: 'dashboard' })
-    },
-    scrollTo(id: string) {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    },
+  {
+    tag: 'Charting',
+    title: 'Prehľadné grafy a jasná analýza',
+    description:
+      'Pracujte s čistou vizualizáciou trendov, porovnávajte vývoj aktív a analyzujte pohyb trhu bez zbytočného rozptyľovania.',
   },
-})
+  {
+    tag: 'Portfolio',
+    title: 'Prehľad portfólia a výkonu v jednom toku',
+    description:
+      'Majte pod kontrolou celkovú hodnotu účtu, denný výsledok aj vývoj otvorených pozícií bez zdĺhavého prepínania.',
+  },
+]
+
+const platformPoints: PlatformPoint[] = [
+  {
+    title: 'Pokročilé rozhranie',
+    description:
+      'Moderný fintech dizajn, ktorý zostáva čitateľný, prehľadný a pohodlný aj pri dlhšom používaní.',
+  },
+  {
+    title: 'Rýchla orientácia',
+    description:
+      'Hierarchia obsahu je navrhnutá tak, aby používateľ okamžite videl najdôležitejšie informácie o trhu aj portfóliu.',
+  },
+  {
+    title: 'Pripravené na dashboard',
+    description:
+      'Platformu možno ďalej rozširovať o reálne trhové dáta, nové nástroje a detailnejšie analytické prehľady.',
+  },
+]
+
+const heroMainImage = '/assets/img/Futures-in-Stock-Market.webp'
+const heroSecondaryImage = '/assets/img/hero-trading.png'
+const platformImage = '/assets/img/Trading-account.png'
+const splitImage = '/assets/img/chart-trading.png'
+
+function goToDashboard() {
+  router.push({ name: 'dashboard' })
+}
+
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
 </script>
 
 <template>

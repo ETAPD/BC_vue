@@ -26,10 +26,7 @@
           >
             Reply
           </a>
-          <button
-            class="btn btn-sm btn-danger-outline"
-            @click="$emit('delete-message', message.id)"
-          >
+          <button class="btn btn-sm btn-danger-outline" @click="emit('delete-message', message.id)">
             Delete
           </button>
         </div>
@@ -38,31 +35,20 @@
   </section>
 </template>
 
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue'
+<script setup lang="ts">
+defineProps<{ messages: any[] }>()
+const emit = defineEmits<{ (e: 'delete-message', id: any): void }>()
 
-export default defineComponent({
-  name: 'MessagesPanel',
-  emits: ['delete-message'],
-  props: {
-    messages: {
-      type: Array as PropType<any[]>,
-      required: true,
-    },
-  },
-  methods: {
-    formatDate(value: string) {
-      if (!value) return '—'
-      return new Date(value).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    },
-  },
-})
+function formatDate(value: string) {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 </script>
 
 <style scoped>

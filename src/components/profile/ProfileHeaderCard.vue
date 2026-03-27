@@ -38,36 +38,31 @@
       <span :class="['role-badge', 'role-' + ((user && user.role) || 'basic')]">
         {{ (user && user.role) || 'basic' }}
       </span>
-      <button class="btn btn-accent" @click="$emit('edit')">Upraviť profil</button>
+      <button class="btn btn-accent" @click="emit('edit')">Upraviť profil</button>
     </div>
   </section>
 </template>
 
-<script>
-export default {
-  name: 'ProfileHeaderCard',
-  props: {
-    user: {
-      type: Object,
-      default: null,
-    },
-    uploadingPicture: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  emits: ['edit', 'upload-picture'],
-  methods: {
-    onFileChange(event) {
-      const file = event.target && event.target.files ? event.target.files[0] : null
-      if (file) {
-        this.$emit('upload-picture', file)
-      }
-      if (event.target) {
-        event.target.value = ''
-      }
-    },
-  },
+<script setup lang="ts">
+defineProps<{
+  user?: any
+  uploadingPicture?: boolean
+}>()
+
+const emit = defineEmits<{
+  edit: []
+  'upload-picture': [file: File]
+}>()
+
+function onFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target?.files?.[0] ?? null
+  if (file) {
+    emit('upload-picture', file)
+  }
+  if (target) {
+    target.value = ''
+  }
 }
 </script>
 

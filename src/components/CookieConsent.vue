@@ -1,30 +1,24 @@
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
 
-export default defineComponent({
-  name: 'CookieConsent',
-  data() {
-    return {
-      visible: false,
-    }
-  },
-  mounted() {
-    const consent = localStorage.getItem('cookie_consent')
-    if (!consent) {
-      this.visible = true
-    }
-  },
-  methods: {
-    accept() {
-      localStorage.setItem('cookie_consent', 'accepted')
-      this.visible = false
-    },
-    decline() {
-      localStorage.setItem('cookie_consent', 'declined')
-      this.visible = false
-    },
-  },
+const visible = ref(false)
+
+onMounted(() => {
+  const consent = localStorage.getItem('cookie_consent')
+  if (!consent) {
+    visible.value = true
+  }
 })
+
+function accept() {
+  localStorage.setItem('cookie_consent', 'accepted')
+  visible.value = false
+}
+
+function decline() {
+  localStorage.setItem('cookie_consent', 'declined')
+  visible.value = false
+}
 </script>
 
 <template>

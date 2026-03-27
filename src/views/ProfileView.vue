@@ -20,7 +20,7 @@
         <ProfileHeaderCard
           :user="user"
           :uploading-picture="uploadingPicture"
-          @edit="openEditProfile(false)"
+          @edit="openEditProfile"
           @upload-picture="handlePictureUpload"
         />
 
@@ -91,7 +91,9 @@
   </div>
 </template>
 
-<script>
+<script setup lang="ts">
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import AppNavbar from '../components/AppNavbar.vue'
 import ProfileHeaderCard from '../components/profile/ProfileHeaderCard.vue'
 import AccountSummaryPanel from '../components/profile/AccountSummaryPanel.vue'
@@ -123,311 +125,281 @@ import {
 } from '../composables/useDashboard'
 import { changePassword, signOut } from '../composables/useAuth'
 
-export default {
-  name: 'ProfileView',
-  components: {
-    AppNavbar,
-    ProfileHeaderCard,
-    AccountSummaryPanel,
-    PortfolioSummaryPanel,
-    NotificationsPanel,
-    SecurityPanel,
-    FundingMethodsPanel,
-    RecentActivityPanel,
-    EditProfileModal,
-    ChangePasswordModal,
-    DeleteAccountModal,
+const router = useRouter()
+
+const loading = ref(true)
+const loadError = ref('')
+const successMsg = ref('')
+let successTimer: ReturnType<typeof setTimeout> | null = null
+const user = ref<any>(null)
+const portfolio = ref<any>(null)
+const holdingsCount = ref(0)
+const watchlistCount = ref(0)
+const openOrdersCount = ref(0)
+const completedTradesCount = ref(0)
+const portfolioCount = ref(1)
+const recentActivity = ref<any[]>([])
+const prefs = ref({
+  notify_price_alerts: true,
+  notify_order_filled: true,
+  notify_order_cancelled: true,
+  notify_security: true,
+})
+const prefsSaving = ref(false)
+const fundingMethods = ref<any[]>([])
+const fundingSaving = ref(false)
+const showPasswordModal = ref(false)
+const passwordSaving = ref(false)
+const showDeleteModal = ref(false)
+const deleteSaving = ref(false)
+const showEditProfile = ref(false)
+const editSaving = ref(false)
+const uploadingPicture = ref(false)
+
+const anyModalOpen = computed(
+  () => showEditProfile.value || showPasswordModal.value || showDeleteModal.value,
+)
+
+const holdingsTotal = computed(() => portfolio.value?.total_value ?? 0)
+const investedAmount = computed(() => portfolio.value?.invested ?? 0)
+const availableCash = computed(() => {
+  return (portfolio.value?.total_value ?? 0) - (holdingsCount.value > 0 ? investedAmount.value : 0)
+})
+const totalPnL = computed(
+  () => (portfolio.value?.total_value ?? 0) - (portfolio.value?.invested ?? 0),
+)
+const totalPnLPct = computed(() => {
+  const inv = portfolio.value?.invested ?? 0
+  if (inv === 0) return '0.0'
+  return ((totalPnL.value / inv) * 100).toFixed(1)
+})
+const dayChange = computed(() => portfolio.value?.day_change ?? 0)
+const dayChangePct = computed(() => portfolio.value?.day_change_percent ?? 0)
+
+watch(
+  anyModalOpen,
+  (open) => {
+    document.body.style.overflow = open ? 'hidden' : ''
   },
-  data() {
-    return {
-      loading: true,
-      loadError: '',
-      successMsg: '',
-      successTimer: null,
-      user: null,
-      portfolio: null,
-      holdingsCount: 0,
-      watchlistCount: 0,
-      openOrdersCount: 0,
-      completedTradesCount: 0,
-      portfolioCount: 1,
-      recentActivity: [],
-      prefs: {
-        notify_price_alerts: true,
-        notify_order_filled: true,
-        notify_order_cancelled: true,
-        notify_security: true,
-      },
-      prefsSaving: false,
-      fundingMethods: [],
-      fundingSaving: false,
-      showPasswordModal: false,
-      passwordSaving: false,
-      showDeleteModal: false,
-      deleteSaving: false,
-      showEditProfile: false,
-      editSaving: false,
-      uploadingPicture: false,
+  { immediate: true },
+)
+
+onMounted(() => {
+  loadProfile()
+})
+
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+  if (successTimer) clearTimeout(successTimer)
+})
+
+function flash(message: string) {
+  successMsg.value = message
+  if (successTimer) clearTimeout(successTimer)
+  successTimer = setTimeout(() => {
+    successMsg.value = ''
+  }, 3500)
+}
+
+function formatCurrency(value: any) {
+  if (value == null) return '$0.00'
+  return Number(value).toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
+}
+
+async function loadProfile() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const u = await getDbUser()
+    if (!u) {
+      router.push('/login')
+      return
     }
-  },
-  computed: {
-    anyModalOpen() {
-      return this.showEditProfile || this.showPasswordModal || this.showDeleteModal
-    },
-    holdingsTotal() {
-      return this.portfolio && this.portfolio.total_value ? this.portfolio.total_value : 0
-    },
-    investedAmount() {
-      return this.portfolio && this.portfolio.invested ? this.portfolio.invested : 0
-    },
-    availableCash() {
-      return (
-        (this.portfolio && this.portfolio.total_value ? this.portfolio.total_value : 0) -
-        (this.holdingsCount > 0 ? this.investedAmount : 0)
-      )
-    },
-    totalPnL() {
-      return (
-        (this.portfolio && this.portfolio.total_value ? this.portfolio.total_value : 0) -
-        (this.portfolio && this.portfolio.invested ? this.portfolio.invested : 0)
-      )
-    },
-    totalPnLPct() {
-      const inv = this.portfolio && this.portfolio.invested ? this.portfolio.invested : 0
-      if (inv === 0) return '0.0'
-      return ((this.totalPnL / inv) * 100).toFixed(1)
-    },
-    dayChange() {
-      return this.portfolio && this.portfolio.day_change ? this.portfolio.day_change : 0
-    },
-    dayChangePct() {
-      return this.portfolio && this.portfolio.day_change_percent
-        ? this.portfolio.day_change_percent
-        : 0
-    },
-  },
-  watch: {
-    anyModalOpen: {
-      immediate: true,
-      handler(open) {
-        document.body.style.overflow = open ? 'hidden' : ''
-      },
-    },
-  },
-  mounted() {
-    this.loadProfile()
-  },
-  beforeUnmount() {
-    document.body.style.overflow = ''
-    if (this.successTimer) {
-      clearTimeout(this.successTimer)
+
+    user.value = u
+    const p = await getPortfolio(u.user_id)
+    portfolio.value = p
+
+    if (p) {
+      const [holdings, watchlist, orders, trades, prefData, funding] = await Promise.all([
+        getHoldings(p.portfolio_id),
+        getWatchlistItems(u.user_id),
+        getOpenOrders(p.portfolio_id),
+        getAllTrades(p.portfolio_id),
+        getUserPreferences(u.user_id),
+        getFundingMethods(u.user_id),
+      ])
+
+      holdingsCount.value = holdings.length
+      watchlistCount.value = watchlist.length
+      openOrdersCount.value = orders.length
+      completedTradesCount.value = trades.filter((trade: any) => trade.trade_type).length
+      fundingMethods.value = funding
+
+      if (prefData) {
+        prefs.value = {
+          notify_price_alerts:
+            typeof prefData.notify_price_alerts !== 'undefined'
+              ? prefData.notify_price_alerts
+              : true,
+          notify_order_filled:
+            typeof prefData.notify_order_filled !== 'undefined'
+              ? prefData.notify_order_filled
+              : true,
+          notify_order_cancelled:
+            typeof prefData.notify_order_cancelled !== 'undefined'
+              ? prefData.notify_order_cancelled
+              : true,
+          notify_security:
+            typeof prefData.notify_security !== 'undefined' ? prefData.notify_security : true,
+        }
+      }
+
+      const recentTrades = await getRecentTrades(p.portfolio_id)
+      recentActivity.value = recentTrades.slice(0, 5).map((trade: any) => ({
+        type: 'trade',
+        icon: trade.trade_type === 'BUY' ? '🟢' : '🔴',
+        label: `${trade.trade_type} ${trade.symbol}`,
+        detail: `${trade.amount} @ ${formatCurrency(trade.price)}`,
+        time: trade.executed_at,
+      }))
     }
-  },
-  methods: {
-    flash(message) {
-      this.successMsg = message
-      if (this.successTimer) {
-        clearTimeout(this.successTimer)
-      }
-      this.successTimer = setTimeout(() => {
-        this.successMsg = ''
-      }, 3500)
-    },
-    formatCurrency(value) {
-      if (value == null) return '$0.00'
-      return Number(value).toLocaleString('sk-SK', { style: 'currency', currency: 'USD' })
-    },
-    async loadProfile() {
-      this.loading = true
-      this.loadError = ''
-      try {
-        const user = await getDbUser()
-        if (!user) {
-          this.$router.push('/login')
-          return
-        }
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa načítať profil'
+  } finally {
+    loading.value = false
+  }
+}
 
-        this.user = user
-        const portfolio = await getPortfolio(user.user_id)
-        this.portfolio = portfolio
+async function handlePictureUpload(file: File) {
+  if (!file || !user.value) return
+  uploadingPicture.value = true
+  try {
+    const url = await uploadProfilePicture(user.value.user_id, file)
+    await updateUserProfile(user.value.user_id, { profile_picture: url })
+    user.value = { ...user.value, profile_picture: url }
+    flash('Profilová fotka bola aktualizovaná')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa nahrať fotku'
+  } finally {
+    uploadingPicture.value = false
+  }
+}
 
-        if (portfolio) {
-          const [holdings, watchlist, orders, trades, prefData, fundingMethods] = await Promise.all(
-            [
-              getHoldings(portfolio.portfolio_id),
-              getWatchlistItems(user.user_id),
-              getOpenOrders(portfolio.portfolio_id),
-              getAllTrades(portfolio.portfolio_id),
-              getUserPreferences(user.user_id),
-              getFundingMethods(user.user_id),
-            ],
-          )
+function openEditProfile() {
+  showEditProfile.value = true
+}
 
-          this.holdingsCount = holdings.length
-          this.watchlistCount = watchlist.length
-          this.openOrdersCount = orders.length
-          this.completedTradesCount = trades.filter((trade) => trade.trade_type).length
-          this.fundingMethods = fundingMethods
+function handleEditProfileVisibility(value: boolean) {
+  showEditProfile.value = value
+}
 
-          if (prefData) {
-            this.prefs = {
-              notify_price_alerts:
-                typeof prefData.notify_price_alerts !== 'undefined'
-                  ? prefData.notify_price_alerts
-                  : true,
-              notify_order_filled:
-                typeof prefData.notify_order_filled !== 'undefined'
-                  ? prefData.notify_order_filled
-                  : true,
-              notify_order_cancelled:
-                typeof prefData.notify_order_cancelled !== 'undefined'
-                  ? prefData.notify_order_cancelled
-                  : true,
-              notify_security:
-                typeof prefData.notify_security !== 'undefined' ? prefData.notify_security : true,
-            }
-          }
+async function saveProfile(payload: any) {
+  if (!user.value || !payload?.full_name?.trim()) return
+  editSaving.value = true
+  try {
+    const computedInitials = payload.initials?.trim()
+      ? payload.initials.trim()
+      : payload.full_name.trim().slice(0, 2).toUpperCase()
 
-          const recentTrades = await getRecentTrades(portfolio.portfolio_id)
-          this.recentActivity = recentTrades.slice(0, 5).map((trade) => ({
-            type: 'trade',
-            icon: trade.trade_type === 'BUY' ? '🟢' : '🔴',
-            label: `${trade.trade_type} ${trade.symbol}`,
-            detail: `${trade.amount} @ ${this.formatCurrency(trade.price)}`,
-            time: trade.executed_at,
-          }))
-        }
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa načítať profil'
-      } finally {
-        this.loading = false
-      }
-    },
-    async handlePictureUpload(file) {
-      if (!file || !this.user) return
-      this.uploadingPicture = true
-      try {
-        const url = await uploadProfilePicture(this.user.user_id, file)
-        await updateUserProfile(this.user.user_id, { profile_picture: url })
-        this.user = {
-          ...this.user,
-          profile_picture: url,
-        }
-        this.flash('Profilová fotka bola aktualizovaná')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa nahrať fotku'
-      } finally {
-        this.uploadingPicture = false
-      }
-    },
-    openEditProfile() {
-      this.showEditProfile = true
-    },
-    handleEditProfileVisibility(value) {
-      this.showEditProfile = value
-    },
-    async saveProfile(payload) {
-      if (!this.user || !payload || !payload.full_name || !payload.full_name.trim()) return
-      this.editSaving = true
-      try {
-        const computedInitials =
-          payload.initials && payload.initials.trim()
-            ? payload.initials.trim()
-            : payload.full_name.trim().slice(0, 2).toUpperCase()
+    await updateUserProfile(user.value.user_id, {
+      full_name: payload.full_name.trim(),
+      initials: computedInitials,
+      phone: payload.phone ? payload.phone.trim() : '',
+    })
 
-        await updateUserProfile(this.user.user_id, {
-          full_name: payload.full_name.trim(),
-          initials: computedInitials,
-          phone: payload.phone ? payload.phone.trim() : '',
-        })
+    user.value = {
+      ...user.value,
+      full_name: payload.full_name.trim(),
+      initials: computedInitials,
+      phone: payload.phone ? payload.phone.trim() : '',
+    }
 
-        this.user = {
-          ...this.user,
-          full_name: payload.full_name.trim(),
-          initials: computedInitials,
-          phone: payload.phone ? payload.phone.trim() : '',
-        }
+    handleEditProfileVisibility(false)
+    flash('Profil bol aktualizovaný')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa uložiť profil'
+  } finally {
+    editSaving.value = false
+  }
+}
 
-        this.handleEditProfileVisibility(false)
-        this.flash('Profil bol aktualizovaný')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa uložiť profil'
-      } finally {
-        this.editSaving = false
-      }
-    },
-    async savePreferences(nextPrefs) {
-      if (!this.user) return
-      this.prefsSaving = true
-      try {
-        await upsertUserPreferences(this.user.user_id, nextPrefs)
-        this.prefs = { ...nextPrefs }
-        this.flash('Preferencie boli uložené')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa uložiť preferencie'
-      } finally {
-        this.prefsSaving = false
-      }
-    },
-    async handleAddFunding(payload) {
-      if (!this.user || !payload || !payload.label || !payload.label.trim()) return
-      this.fundingSaving = true
-      try {
-        await addFundingMethod(this.user.user_id, { ...payload })
-        this.fundingMethods = await getFundingMethods(this.user.user_id)
-        this.flash('Platobná metóda bola pridaná')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa pridať metódu'
-      } finally {
-        this.fundingSaving = false
-      }
-    },
-    async handleRemoveFunding(id) {
-      try {
-        await removeFundingMethod(id)
-        this.fundingMethods = this.fundingMethods.filter((item) => item.funding_id !== id)
-        this.flash('Platobná metóda bola odstránená')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa odstrániť metódu'
-      }
-    },
-    async handleChangePassword(newPassword) {
-      this.passwordSaving = true
-      try {
-        await changePassword(newPassword)
-        this.showPasswordModal = false
-        this.flash('Heslo bolo zmenené')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa zmeniť heslo'
-      } finally {
-        this.passwordSaving = false
-      }
-    },
-    async handleLogout() {
-      await signOut()
-      this.$router.push('/login')
-    },
-    async handleDeleteAccount() {
-      this.deleteSaving = true
-      try {
-        await deleteUserAccount()
-        await signOut()
-        this.$router.push('/')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Nepodarilo sa odstrániť účet'
-      } finally {
-        this.deleteSaving = false
-      }
-    },
-    async handleExport() {
-      try {
-        await exportUserData()
-        this.flash('Export dát bol zahájený')
-      } catch (error) {
-        this.loadError = error && error.message ? error.message : 'Export zlyhal'
-      }
-    },
-  },
+async function savePreferences(nextPrefs: any) {
+  if (!user.value) return
+  prefsSaving.value = true
+  try {
+    await upsertUserPreferences(user.value.user_id, nextPrefs)
+    prefs.value = { ...nextPrefs }
+    flash('Preferencie boli uložené')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa uložiť preferencie'
+  } finally {
+    prefsSaving.value = false
+  }
+}
+
+async function handleAddFunding(payload: any) {
+  if (!user.value || !payload?.label?.trim()) return
+  fundingSaving.value = true
+  try {
+    await addFundingMethod(user.value.user_id, { ...payload })
+    fundingMethods.value = await getFundingMethods(user.value.user_id)
+    flash('Platobná metóda bola pridaná')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa pridať metódu'
+  } finally {
+    fundingSaving.value = false
+  }
+}
+
+async function handleRemoveFunding(id: any) {
+  try {
+    await removeFundingMethod(id)
+    fundingMethods.value = fundingMethods.value.filter((item: any) => item.funding_id !== id)
+    flash('Platobná metóda bola odstránená')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa odstrániť metódu'
+  }
+}
+
+async function handleChangePassword(newPassword: string) {
+  passwordSaving.value = true
+  try {
+    await changePassword(newPassword)
+    showPasswordModal.value = false
+    flash('Heslo bolo zmenené')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa zmeniť heslo'
+  } finally {
+    passwordSaving.value = false
+  }
+}
+
+async function handleLogout() {
+  await signOut()
+  router.push('/login')
+}
+
+async function handleDeleteAccount() {
+  deleteSaving.value = true
+  try {
+    await deleteUserAccount()
+    await signOut()
+    router.push('/')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa odstrániť účet'
+  } finally {
+    deleteSaving.value = false
+  }
+}
+
+async function handleExport() {
+  try {
+    await exportUserData()
+    flash('Export dát bol zahájený')
+  } catch (error: any) {
+    loadError.value = error?.message || 'Export zlyhal'
+  }
 }
 </script>
 

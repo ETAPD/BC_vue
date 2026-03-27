@@ -1,5 +1,7 @@
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 interface Plan {
   name: string
@@ -17,89 +19,82 @@ interface Step {
   desc: string
 }
 
-export default defineComponent({
-  name: 'ServicesSection',
-  data() {
-    return {
-      plans: [
-        {
-          name: 'Zadarmo',
-          price: '0 €',
-          period: '/navždy',
-          tagline: 'Začnite jednoducho so sledovaním trhu a portfólia',
-          features: [
-            '1 investičné portfólio',
-            'Oneskoré údaje o akciách (15 min)',
-            'Sledovací zoznam 10 akcií',
-            'Základný prehľad portfólia',
-            'Komunitná podpora',
-          ],
-          highlight: false,
-          cta: 'Začať zadarmo',
-        },
-        {
-          name: 'Pro',
-          price: '29 €',
-          period: '/mesiac',
-          tagline: 'Pre vážnych obchodníkov, ktorí chcú plný zážitok',
-          features: [
-            'Údaje o akciách v reálnom čase',
-            'Neobmedzené simulované obchody',
-            'Pokročilé grafy a indikátory',
-            'Viacero portfólií',
-            'Rozšírený sledovací zoznam (50 akcií)',
-            'Prioritná podpora',
-          ],
-          highlight: true,
-          cta: 'Prejsť na Pro',
-        },
-        {
-          name: 'Elite',
-          price: '99 €',
-          period: '/mesiac',
-          tagline: 'Plný prístup s analytikou, upozorneniami a API',
-          features: [
-            'Všetko z Pro',
-            'API prístup',
-            'Pokročilé analýzy a reporty',
-            'Vlastné cenové upozornenia',
-            'Exportovateľné obchodné reporty',
-            'Osobný správca účtu',
-          ],
-          highlight: false,
-          cta: 'Prejsť na Elite',
-        },
-      ] as Plan[],
-      steps: [
-        {
-          num: '01',
-          title: 'Vytvorte účet',
-          desc: 'Zaregistrujte sa za menej ako 60 sekúnd. Bezplatný plán nevyžaduje kreditnú kartu.',
-        },
-        {
-          num: '02',
-          title: 'Vyberte si plán',
-          desc: 'Začnite zadarmo alebo odomknite funkcie Pro a Elite pre hlbší obchodný zážitok.',
-        },
-        {
-          num: '03',
-          title: 'Vytvorte sledovací zoznam',
-          desc: 'Sledujte akcie, ktoré vás zaujímajú, s reálnymi alebo oneskorými dátami podľa vášho plánu.',
-        },
-        {
-          num: '04',
-          title: 'Začnite obchodovať',
-          desc: 'Realizujte simulované obchody, analyzujte svoju výkonnosť a zdožaľujte svoju stratégiu bez rizika.',
-        },
-      ] as Step[],
-    }
+const plans: Plan[] = [
+  {
+    name: 'Zadarmo',
+    price: '0 €',
+    period: '/navždy',
+    tagline: 'Začnite jednoducho so sledovaním trhu a portfólia',
+    features: [
+      '1 investičné portfólio',
+      'Oneskoré údaje o akciách (15 min)',
+      'Sledovací zoznam 10 akcií',
+      'Základný prehľad portfólia',
+      'Komunitná podpora',
+    ],
+    highlight: false,
+    cta: 'Začať zadarmo',
   },
-  methods: {
-    goToDashboard() {
-      this.$router.push({ name: 'dashboard' })
-    },
+  {
+    name: 'Pro',
+    price: '29 €',
+    period: '/mesiac',
+    tagline: 'Pre vážnych obchodníkov, ktorí chcú plný zážitok',
+    features: [
+      'Údaje o akciách v reálnom čase',
+      'Neobmedzené simulované obchody',
+      'Pokročilé grafy a indikátory',
+      'Viacero portfólií',
+      'Rozšírený sledovací zoznam (50 akcií)',
+      'Prioritná podpora',
+    ],
+    highlight: true,
+    cta: 'Prejsť na Pro',
   },
-})
+  {
+    name: 'Elite',
+    price: '99 €',
+    period: '/mesiac',
+    tagline: 'Plný prístup s analytikou, upozorneniami a API',
+    features: [
+      'Všetko z Pro',
+      'API prístup',
+      'Pokročilé analýzy a reporty',
+      'Vlastné cenové upozornenia',
+      'Exportovateľné obchodné reporty',
+      'Osobný správca účtu',
+    ],
+    highlight: false,
+    cta: 'Prejsť na Elite',
+  },
+]
+
+const steps: Step[] = [
+  {
+    num: '01',
+    title: 'Vytvorte účet',
+    desc: 'Zaregistrujte sa za menej ako 60 sekúnd. Bezplatný plán nevyžaduje kreditnú kartu.',
+  },
+  {
+    num: '02',
+    title: 'Vyberte si plán',
+    desc: 'Začnite zadarmo alebo odomknite funkcie Pro a Elite pre hlbší obchodný zážitok.',
+  },
+  {
+    num: '03',
+    title: 'Vytvorte sledovací zoznam',
+    desc: 'Sledujte akcie, ktoré vás zaujímajú, s reálnymi alebo oneskorými dátami podľa vášho plánu.',
+  },
+  {
+    num: '04',
+    title: 'Začnite obchodovať',
+    desc: 'Realizujte simulované obchody, analyzujte svoju výkonnosť a zdožaľujte svoju stratégiu bez rizika.',
+  },
+]
+
+function goToDashboard() {
+  router.push({ name: 'dashboard' })
+}
 </script>
 
 <template>

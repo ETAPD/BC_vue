@@ -87,8 +87,8 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppNavbar from '../components/AppNavbar.vue'
 import PortfolioSummary from '../components/dashboard/PortfolioSummary.vue'
 import HoldingsPanel from '../components/dashboard/HoldingsPanel.vue'
@@ -114,272 +114,215 @@ import {
   getUserLimits,
 } from '../composables/useDashboard'
 
-type DashboardAsset = any
-type DashboardHolding = any
-type DashboardOrder = any
-type DashboardTrade = any
-type DashboardUserLimits = {
-  role: string
-  max_watchlist: number
-  max_open_orders: number
-  max_holdings: number
-  can_export: boolean
-  can_use_stop_orders: boolean
+const loading = ref(true)
+const loadError = ref('')
+const isGuest = ref(false)
+const userName = ref('')
+const userInitials = ref('U')
+const userEmail = ref('')
+const userProfilePicture = ref('')
+const portfolio = ref<any>(null)
+const holdings = ref<any[]>([])
+const watchlist = ref<any[]>([])
+const openOrders = ref<any[]>([])
+const recentTrades = ref<any[]>([])
+const assets = ref<any[]>([])
+const userLimits = ref({
+  role: 'basic',
+  max_watchlist: 5,
+  max_open_orders: 3,
+  max_holdings: 5,
+  can_export: false,
+  can_use_stop_orders: false,
+})
+const portfolioId = ref(0)
+const currentUserId = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+const showDetail = ref(false)
+const detailAsset = ref<any>(null)
+const editingOrder = ref<any>(null)
+const editSaving = ref(false)
+const orderSubmitting = ref(false)
+const orderSubmitError = ref('')
+const orderSubmitSuccess = ref(false)
+
+const holdingsTotal = computed(() => {
+  return holdings.value.reduce((sum: number, h: any) => sum + (h.value ?? 0), 0)
+})
+
+const availableCash = computed(() => {
+  const totalValue = portfolio.value?.total_value ?? 0
+  return totalValue - holdingsTotal.value
+})
+
+onMounted(async () => {
+  await loadDashboard()
+  refreshTimer = setInterval(refreshData, 15000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+})
+
+async function loadDashboard() {
+  try {
+    const user = await getDbUser()
+    if (!user) {
+      isGuest.value = true
+      userName.value = 'Hosť'
+      userInitials.value = 'H'
+      loading.value = false
+      return
+    }
+
+    userName.value = user.full_name || 'Používateľ'
+    userInitials.value = user.initials || 'U'
+    userEmail.value = user.email || ''
+    userProfilePicture.value = user.profile_picture || ''
+    currentUserId.value = user.user_id
+
+    const p = await getPortfolio(user.user_id)
+    portfolio.value = p
+    if (p) portfolioId.value = p.portfolio_id
+
+    await refreshData()
+
+    try {
+      const limits = await getUserLimits()
+      if (limits) userLimits.value = limits
+    } catch {
+      // keep defaults
+    }
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa načítať dashboard'
+  } finally {
+    loading.value = false
+  }
 }
 
-export default defineComponent({
-  name: 'DashboardView',
-  components: {
-    AppNavbar,
-    PortfolioSummary,
-    HoldingsPanel,
-    OrderPanel,
-    WatchlistPanel,
-    OpenOrdersPanel,
-    RecentTradesPanel,
-    OrderEditModal,
-    AssetDetailModal,
-  },
+async function refreshData() {
+  try {
+    if (!currentUserId.value) return
 
-  data() {
-    return {
-      loading: true,
-      loadError: '',
-      isGuest: false,
-      userName: '',
-      userInitials: 'U',
-      userEmail: '',
-      userProfilePicture: '',
-      portfolio: null as any,
-      holdings: [] as DashboardHolding[],
-      watchlist: [] as any[],
-      openOrders: [] as DashboardOrder[],
-      recentTrades: [] as DashboardTrade[],
-      assets: [] as DashboardAsset[],
-      userLimits: {
-        role: 'basic',
-        max_watchlist: 5,
-        max_open_orders: 3,
-        max_holdings: 5,
-        can_export: false,
-        can_use_stop_orders: false,
-      } as DashboardUserLimits,
-      portfolioId: 0,
-      currentUserId: 0,
-      refreshTimer: null as ReturnType<typeof setInterval> | null,
-      showDetail: false,
-      detailAsset: null as any,
-      editingOrder: null as any,
-      editSaving: false,
-      orderSubmitting: false,
-      orderSubmitError: '',
-      orderSubmitSuccess: false,
-    }
-  },
+    const requests: Promise<any>[] = [
+      getPortfolio(currentUserId.value),
+      getWatchlistItems(currentUserId.value),
+      getAssets(),
+    ]
 
-  computed: {
-    holdingsTotal(): number {
-      return this.holdings.reduce(
-        (sum: number, holding: DashboardHolding) => sum + (holding.value ?? 0),
+    if (portfolioId.value) {
+      requests.splice(
+        1,
         0,
+        getHoldings(portfolioId.value),
+        getOpenOrders(portfolioId.value),
+        getRecentTrades(portfolioId.value),
       )
-    },
-
-    availableCash(): number {
-      const totalValue = this.portfolio?.total_value ?? 0
-      return totalValue - this.holdingsTotal
-    },
-  },
-
-  async mounted() {
-    await this.loadDashboard()
-    this.refreshTimer = setInterval(this.refreshData, 15000)
-  },
-
-  unmounted() {
-    if (this.refreshTimer) {
-      clearInterval(this.refreshTimer)
+    } else {
+      requests.splice(1, 0, Promise.resolve([]), Promise.resolve([]), Promise.resolve([]))
     }
-  },
 
-  methods: {
-    async loadDashboard() {
-      try {
-        const user = await getDbUser()
-        if (!user) {
-          this.isGuest = true
-          this.userName = 'Hosť'
-          this.userInitials = 'H'
-          this.loading = false
-          return
-        }
+    const [p, h, o, t, w, a] = await Promise.all(requests)
 
-        this.userName = user.full_name || 'Používateľ'
-        this.userInitials = user.initials || 'U'
-        this.userEmail = user.email || ''
-        this.userProfilePicture = user.profile_picture || ''
-        this.currentUserId = user.user_id
+    portfolio.value = p
+    if (p && !portfolioId.value) portfolioId.value = p.portfolio_id
+    holdings.value = h
+    openOrders.value = o
+    recentTrades.value = t
+    watchlist.value = w
+    assets.value = a
+  } catch {
+    // silent refresh failure
+  }
+}
 
-        const portfolio = await getPortfolio(user.user_id)
-        this.portfolio = portfolio
-        if (portfolio) {
-          this.portfolioId = portfolio.portfolio_id
-        }
+async function handleSubmitOrder(payload: any) {
+  if (!portfolioId.value) return
+  orderSubmitting.value = true
+  orderSubmitError.value = ''
+  orderSubmitSuccess.value = false
+  try {
+    await placeOrder({ portfolio_id: portfolioId.value, ...payload })
+    await refreshData()
+    orderSubmitSuccess.value = true
+    setTimeout(() => {
+      orderSubmitSuccess.value = false
+    }, 2000)
+  } catch (error: any) {
+    orderSubmitError.value = error?.message || 'Nepodarilo sa zadať príkaz'
+  } finally {
+    orderSubmitting.value = false
+  }
+}
 
-        await this.refreshData()
+function openAssetDetail(holding: any) {
+  detailAsset.value = holding
+  showDetail.value = true
+}
 
-        try {
-          const limits = await getUserLimits()
-          if (limits) {
-            this.userLimits = limits
-          }
-        } catch {
-          // keep defaults
-        }
-      } catch (error: any) {
-        this.loadError = error?.message || 'Nepodarilo sa načítať dashboard'
-      } finally {
-        this.loading = false
-      }
-    },
+function closeDetail() {
+  showDetail.value = false
+  detailAsset.value = null
+}
 
-    async refreshData() {
-      try {
-        if (!this.currentUserId) return
+async function handleAddWatchlist(symbol: string) {
+  if (!currentUserId.value || !symbol.trim()) return
+  const normalizedSymbol = symbol.trim().toUpperCase()
+  const asset = assets.value.find((item: any) => item.symbol === normalizedSymbol)
+  try {
+    await addWatchlistItem(currentUserId.value, normalizedSymbol, asset?.base_price ?? 0)
+    watchlist.value = await getWatchlistItems(currentUserId.value)
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa pridať do sledovaného zoznamu'
+  }
+}
 
-        const requests: Promise<any>[] = [
-          getPortfolio(this.currentUserId),
-          getWatchlistItems(this.currentUserId),
-          getAssets(),
-        ]
+async function handleRemoveWatchlist(itemId: number) {
+  try {
+    await removeWatchlistItem(itemId)
+    watchlist.value = await getWatchlistItems(currentUserId.value)
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa odstrániť zo sledovaného zoznamu'
+  }
+}
 
-        if (this.portfolioId) {
-          requests.splice(
-            1,
-            0,
-            getHoldings(this.portfolioId),
-            getOpenOrders(this.portfolioId),
-            getRecentTrades(this.portfolioId),
-          )
-        } else {
-          requests.splice(1, 0, Promise.resolve([]), Promise.resolve([]), Promise.resolve([]))
-        }
+async function handleCancelOrder(orderId: number) {
+  try {
+    await cancelOrder(orderId)
+    openOrders.value = await getOpenOrders(portfolioId.value)
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa zrušiť príkaz'
+  }
+}
 
-        const [portfolio, holdings, openOrders, recentTrades, watchlist, assets] =
-          await Promise.all(requests)
+function startEditOrder(order: any) {
+  editingOrder.value = order
+}
 
-        this.portfolio = portfolio
-        if (portfolio && !this.portfolioId) {
-          this.portfolioId = portfolio.portfolio_id
-        }
+function cancelEditOrder() {
+  editingOrder.value = null
+}
 
-        this.holdings = holdings
-        this.openOrders = openOrders
-        this.recentTrades = recentTrades
-        this.watchlist = watchlist
-        this.assets = assets
-      } catch {
-        // silent refresh failure
-      }
-    },
+async function saveEditOrder(payload: { orderId: number; updates: Record<string, any> }) {
+  if (!payload?.orderId) return
+  editSaving.value = true
+  try {
+    await updateOrder(payload.orderId, payload.updates)
+    openOrders.value = await getOpenOrders(portfolioId.value)
+    editingOrder.value = null
+  } catch (error: any) {
+    loadError.value = error?.message || 'Nepodarilo sa upraviť príkaz'
+  } finally {
+    editSaving.value = false
+  }
+}
 
-    async handleSubmitOrder(payload: any) {
-      if (!this.portfolioId) return
-
-      this.orderSubmitting = true
-      this.orderSubmitError = ''
-      this.orderSubmitSuccess = false
-
-      try {
-        await placeOrder({
-          portfolio_id: this.portfolioId,
-          ...payload,
-        })
-
-        await this.refreshData()
-        this.orderSubmitSuccess = true
-        setTimeout(() => {
-          this.orderSubmitSuccess = false
-        }, 2000)
-      } catch (error: any) {
-        this.orderSubmitError = error?.message || 'Nepodarilo sa zadať príkaz'
-      } finally {
-        this.orderSubmitting = false
-      }
-    },
-
-    openAssetDetail(holding: DashboardHolding) {
-      this.detailAsset = holding
-      this.showDetail = true
-    },
-
-    closeDetail() {
-      this.showDetail = false
-      this.detailAsset = null
-    },
-
-    async handleAddWatchlist(symbol: string) {
-      if (!this.currentUserId || !symbol.trim()) return
-      const normalizedSymbol = symbol.trim().toUpperCase()
-      const asset = this.assets.find((item: DashboardAsset) => item.symbol === normalizedSymbol)
-
-      try {
-        await addWatchlistItem(this.currentUserId, normalizedSymbol, asset?.base_price ?? 0)
-        this.watchlist = await getWatchlistItems(this.currentUserId)
-      } catch (error: any) {
-        this.loadError = error?.message || 'Nepodarilo sa pridať do sledovaného zoznamu'
-      }
-    },
-
-    async handleRemoveWatchlist(itemId: number) {
-      try {
-        await removeWatchlistItem(itemId)
-        this.watchlist = await getWatchlistItems(this.currentUserId)
-      } catch (error: any) {
-        this.loadError = error?.message || 'Nepodarilo sa odstrániť zo sledovaného zoznamu'
-      }
-    },
-
-    async handleCancelOrder(orderId: number) {
-      try {
-        await cancelOrder(orderId)
-        this.openOrders = await getOpenOrders(this.portfolioId)
-      } catch (error: any) {
-        this.loadError = error?.message || 'Nepodarilo sa zrušiť príkaz'
-      }
-    },
-
-    startEditOrder(order: DashboardOrder) {
-      this.editingOrder = order
-    },
-
-    cancelEditOrder() {
-      this.editingOrder = null
-    },
-
-    async saveEditOrder(payload: { orderId: number; updates: Record<string, any> }) {
-      if (!payload?.orderId) return
-
-      this.editSaving = true
-      try {
-        await updateOrder(payload.orderId, payload.updates)
-        this.openOrders = await getOpenOrders(this.portfolioId)
-        this.editingOrder = null
-      } catch (error: any) {
-        this.loadError = error?.message || 'Nepodarilo sa upraviť príkaz'
-      } finally {
-        this.editSaving = false
-      }
-    },
-
-    formatCurrency(value: number) {
-      return Number(value || 0).toLocaleString('sk-SK', {
-        style: 'currency',
-        currency: 'USD',
-      })
-    },
-  },
-})
+function formatCurrency(value: number) {
+  return Number(value || 0).toLocaleString('sk-SK', {
+    style: 'currency',
+    currency: 'USD',
+  })
+}
 </script>
 
 <style>

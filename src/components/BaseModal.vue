@@ -1,39 +1,35 @@
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue'
+<script setup lang="ts">
+import { watch } from 'vue'
 
-export default defineComponent({
-  name: 'BaseModal',
-  props: {
-    show: {
-      type: Boolean,
-      required: true,
-    },
-    title: {
-      type: String as PropType<string>,
-      default: '',
-    },
-    showClose: {
-      type: Boolean,
-      default: true,
-    },
-    width: {
-      type: String as PropType<string>,
-      default: '',
-    },
+const props = withDefaults(
+  defineProps<{
+    show: boolean
+    title?: string
+    showClose?: boolean
+    width?: string
+  }>(),
+  {
+    title: '',
+    showClose: true,
+    width: '',
   },
-  emits: ['close'],
-  watch: {
-    show(isOpen: boolean) {
-      if (typeof document === 'undefined') return
-      document.body.style.overflow = isOpen ? 'hidden' : ''
-    },
+)
+
+const emit = defineEmits<{
+  (e: 'close'): void
+}>()
+
+watch(
+  () => props.show,
+  (isOpen) => {
+    if (typeof document === 'undefined') return
+    document.body.style.overflow = isOpen ? 'hidden' : ''
   },
-  methods: {
-    onBackdropClick() {
-      this.$emit('close')
-    },
-  },
-})
+)
+
+function onBackdropClick() {
+  emit('close')
+}
 </script>
 
 <template>
@@ -44,7 +40,7 @@ export default defineComponent({
           <slot name="header">
             <h3 class="modal-title">{{ title }}</h3>
           </slot>
-          <button v-if="showClose" type="button" class="modal-close" @click="$emit('close')">
+          <button v-if="showClose" type="button" class="modal-close" @click="emit('close')">
             &times;
           </button>
         </header>

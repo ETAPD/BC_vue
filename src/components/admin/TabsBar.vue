@@ -4,7 +4,7 @@
       v-for="tab in tabs"
       :key="tab.key"
       :class="['tab-btn', { active: activeTab === tab.key }]"
-      @click="$emit('update:activeTab', tab.key)"
+      @click="emit('update:activeTab', tab.key)"
     >
       <span class="tab-icon">{{ tab.icon }}</span>
       {{ tab.label }}
@@ -12,9 +12,7 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue'
-
+<script setup lang="ts">
 const tabs = [
   { key: 'users', label: 'Používatelia', icon: '👤' },
   { key: 'portfolios', label: 'Portfóliá', icon: '💼' },
@@ -27,21 +25,13 @@ const tabs = [
 
 type TabKey = (typeof tabs)[number]['key']
 
-export default defineComponent({
-  name: 'TabsBar',
-  emits: ['update:activeTab'],
-  props: {
-    activeTab: {
-      type: String as PropType<TabKey>,
-      required: true,
-    },
-  },
-  data() {
-    return {
-      tabs,
-    }
-  },
-})
+defineProps<{
+  activeTab: TabKey
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:activeTab', value: TabKey): void
+}>()
 </script>
 
 <style scoped>

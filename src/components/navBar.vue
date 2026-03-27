@@ -1,58 +1,54 @@
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../lib/supabase'
 
-export default defineComponent({
-  name: 'NavBar',
-  data() {
-    return {
-      mobileMenuOpen: false,
-      scrolled: false,
-      activeSection: 'hero',
-      isLoggedIn: false,
-      authUnsub: null as (() => void) | null,
-      navLinks: [
-        { name: 'Domov', target: 'hero' },
-        { name: 'Funkcie', target: 'features' },
-        { name: 'O nás', target: 'about' },
-        { name: 'Členstvo', target: 'services' },
-        { name: 'Referencie', target: 'comments' },
-        { name: 'Kontakt', target: 'contact' },
-      ],
+const mobileMenuOpen = ref(false)
+const scrolled = ref(false)
+const activeSection = ref('hero')
+const isLoggedIn = ref(false)
+let authUnsub: (() => void) | null = null
+
+const navLinks = [
+  { name: 'Domov', target: 'hero' },
+  { name: 'Funkcie', target: 'features' },
+  { name: 'O nás', target: 'about' },
+  { name: 'Členstvo', target: 'services' },
+  { name: 'Referencie', target: 'comments' },
+  { name: 'Kontakt', target: 'contact' },
+]
+
+function scrollTo(id: string) {
+  mobileMenuOpen.value = false
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
+function handleScroll() {
+  scrolled.value = window.scrollY > 50
+  const sections = navLinks.map((l) => l.target)
+  for (let i = sections.length - 1; i >= 0; i--) {
+    const target = sections[i]!
+    const el = document.getElementById(target)
+    if (el && el.getBoundingClientRect().top <= 120) {
+      activeSection.value = target
+      break
     }
-  },
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll)
-    supabase.auth.getSession().then(({ data }) => {
-      this.isLoggedIn = !!data.session
-    })
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      this.isLoggedIn = !!session
-    })
-    this.authUnsub = data.subscription.unsubscribe
-  },
-  unmounted() {
-    window.removeEventListener('scroll', this.handleScroll)
-    this.authUnsub?.()
-  },
-  methods: {
-    scrollTo(id: string) {
-      this.mobileMenuOpen = false
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
-    },
-    handleScroll() {
-      this.scrolled = window.scrollY > 50
-      const sections = this.navLinks.map((l) => l.target)
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const target = sections[i]!
-        const el = document.getElementById(target)
-        if (el && el.getBoundingClientRect().top <= 120) {
-          this.activeSection = target
-          break
-        }
-      }
-    },
-  },
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+  supabase.auth.getSession().then(({ data }) => {
+    isLoggedIn.value = !!data.session
+  })
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    isLoggedIn.value = !!session
+  })
+  authUnsub = data.subscription.unsubscribe
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+  authUnsub?.()
 })
 </script>
 

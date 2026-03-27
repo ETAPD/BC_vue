@@ -4,8 +4,8 @@
       <span class="label">Hodnota portfólia</span>
       <span class="value">{{ formatCurrency(portfolio?.total_value ?? 0) }}</span>
       <span :class="['change', dayChange >= 0 ? 'up' : 'down']">
-        {{ dayChange >= 0 ? '+' : '' }}{{ formatCurrency(dayChange) }}
-        ({{ dayChangePercent }}%) dnes
+        {{ dayChange >= 0 ? '+' : '' }}{{ formatCurrency(dayChange) }} ({{ dayChangePercent }}%)
+        dnes
       </span>
     </div>
 
@@ -17,7 +17,7 @@
 
     <div class="summary-card">
       <span class="label">Dostupná hotovosť</span>
-      <span class="value">{{ formatCurrency(availableCash) }}</span>
+      <span class="value">{{ formatCurrency(availableCash ?? 0) }}</span>
       <span class="change">Pripravené na investovanie</span>
     </div>
 
@@ -29,28 +29,18 @@
   </section>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { computed } from 'vue'
 
-export default defineComponent({
-  name: 'PortfolioSummary',
-  props: {
-    portfolio: { type: Object, default: null },
-    availableCash: { type: Number, default: 0 },
-    openOrdersCount: { type: Number, default: 0 },
-    formatCurrency: { type: Function, required: true },
-  },
-  computed: {
-    dayChange(): number {
-      return Number(this.portfolio?.day_change ?? 0)
-    },
+const props = defineProps<{
+  portfolio: any | null
+  availableCash?: number
+  openOrdersCount?: number
+  formatCurrency: (value: number, currency?: string) => string
+}>()
 
-    dayChangePercent(): string {
-      return String(this.portfolio?.day_change_percent ?? 0)
-    },
-  },
-})
+const dayChange = computed(() => Number(props.portfolio?.day_change ?? 0))
+const dayChangePercent = computed(() => String(props.portfolio?.day_change_percent ?? 0))
 </script>
 
-<style>
-</style>
+<style></style>

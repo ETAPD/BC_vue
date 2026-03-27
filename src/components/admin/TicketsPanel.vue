@@ -89,7 +89,7 @@
           <button
             type="button"
             class="btn btn-manage-user"
-            @click.stop="$emit('manage-user', activeTicket)"
+            @click.stop="emit('manage-user', activeTicket)"
           >
             👤 Spravovať používateľa
           </button>
@@ -215,8 +215,8 @@
   </section>
 </template>
 
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import {
   adminGetAllTickets,
   getTicketMessages,
@@ -228,211 +228,219 @@ import {
 
 const CLOSE_REASON_PREFIX = '__CLOSE_REASON__:'
 
-export default defineComponent({
-  name: 'TicketsPanel',
-  props: {
-    tickets: {
-      type: Array as PropType<any[]>,
-      required: true,
-    },
-    adminName: {
-      type: String as PropType<string>,
-      default: undefined,
-    },
-  },
-  emits: ['ticket-updated', 'manage-user', 'refresh'],
-  data() {
-    return {
-      searchQuery: '',
-      statusFilter: 'all',
-      localTickets: [] as any[],
-      chatOpen: false,
-      activeTicket: null as any,
-      messages: [] as any[],
-      messagesLoading: false,
-      sendLoading: false,
-      statusLoading: false,
-      replyText: '',
-      closeReasonOpen: false,
-      closeReasonText: '',
-    }
-  },
-  computed: {
-    filteredTickets(): any[] {
-      const q = this.searchQuery.trim().toLowerCase()
-      return this.localTickets.filter((ticket) => {
-        const statusOk =
-          this.statusFilter === 'all' || this.normalizedStatus(ticket.status) === this.statusFilter
-        if (!statusOk) return false
-        if (!q) return true
-        return (
-          (ticket.subject || '').toLowerCase().includes(q) ||
-          (ticket.user_name || '').toLowerCase().includes(q) ||
-          (ticket.user_email || '').toLowerCase().includes(q) ||
-          String(ticket.ticket_id || '').includes(q)
-        )
-      })
-    },
-  },
-  watch: {
-    tickets: {
-      handler(value: any[]) {
-        this.localTickets = Array.isArray(value) ? value.map((item) => ({ ...item })) : []
-      },
-      immediate: true,
-      deep: true,
-    },
-    chatOpen: {
-      handler(open: boolean) {
-        document.body.style.overflow = open ? 'hidden' : ''
-      },
-      immediate: true,
-    },
-  },
-  beforeUnmount() {
-    document.body.style.overflow = ''
-  },
-  methods: {
-    normalizedStatus(status: string) {
-      return status === 'closed' ? 'closed' : 'open'
-    },
-    statusLabel(status: string) {
-      return this.normalizedStatus(status) === 'closed' ? 'Uzavretý' : 'Otvorený'
-    },
-    statusClass(status: string) {
-      return this.normalizedStatus(status) === 'closed' ? 'is-closed' : 'is-open'
-    },
-    formatDate(value: string | null | undefined) {
-      if (!value) return '—'
-      return new Date(value).toLocaleString('sk-SK', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    },
-    isCloseReasonMessage(message: any) {
-      return typeof message?.body === 'string' && message.body.startsWith(CLOSE_REASON_PREFIX)
-    },
-    extractCloseReason(body: string) {
-      if (typeof body !== 'string') return ''
-      return body.replace(CLOSE_REASON_PREFIX, '').trim()
-    },
-    initials(name: string | undefined) {
-      if (!name) return '?'
-      return name
-        .trim()
-        .split(/\s+/)
-        .map((w) => (w[0] ?? '').toUpperCase())
-        .slice(0, 2)
-        .join('')
-    },
-    async refreshTickets() {
-      const fresh = await adminGetAllTickets()
-      this.localTickets = Array.isArray(fresh) ? fresh : []
-      this.$emit('ticket-updated')
-      if (this.activeTicket) {
-        const updated = this.localTickets.find(
-          (item) => item.ticket_id === this.activeTicket.ticket_id,
-        )
-        if (updated) this.activeTicket = { ...updated }
-      }
-    },
-    async reloadMessages() {
-      if (!this.activeTicket) return
-      this.messages = await getTicketMessages(this.activeTicket.ticket_id)
-    },
-    async openTicket(ticket: any) {
-      this.activeTicket = { ...ticket }
-      this.chatOpen = true
-      this.replyText = ''
-      this.closeReasonOpen = false
-      this.closeReasonText = ''
-      this.messagesLoading = true
-      try {
-        this.messages = await getTicketMessages(ticket.ticket_id)
-      } finally {
-        this.messagesLoading = false
-      }
-    },
-    closeChat() {
-      this.chatOpen = false
-      this.activeTicket = null
-      this.messages = []
-      this.replyText = ''
-      this.closeReasonOpen = false
-      this.closeReasonText = ''
-    },
-    openCloseReasonModal() {
-      this.closeReasonOpen = true
-      this.closeReasonText = ''
-    },
-    cancelCloseReason() {
-      this.closeReasonOpen = false
-      this.closeReasonText = ''
-    },
-    async sendReply() {
-      if (!this.activeTicket || !this.replyText.trim()) return
-      this.sendLoading = true
-      try {
-        await sendTicketMessage(
-          this.activeTicket.ticket_id,
-          'admin',
-          this.adminName || 'Administrator',
-          this.replyText.trim(),
-        )
-        if (this.activeTicket.user_id) {
-          await createAdminNotification(
-            this.activeTicket.user_id,
-            'Nová odpoveď na tiket',
-            `Dostali ste odpoveď na tiket: ${this.activeTicket.subject || 'Bez predmetu'}`,
-          ).catch(() => {})
-        }
-        this.replyText = ''
-        await this.reloadMessages()
-        await this.refreshTickets()
-      } finally {
-        this.sendLoading = false
-      }
-    },
-    async confirmCloseCurrentTicket() {
-      if (!this.activeTicket || !this.closeReasonText.trim()) return
-      this.statusLoading = true
-      try {
-        await sendTicketMessage(
-          this.activeTicket.ticket_id,
-          'admin',
-          this.adminName || 'Administrator',
-          `${CLOSE_REASON_PREFIX}${this.closeReasonText.trim()}`,
-        )
-        await closeTicket(this.activeTicket.ticket_id)
-        if (this.activeTicket.user_id) {
-          await createAdminNotification(
-            this.activeTicket.user_id,
-            'Tiket bol uzavretý',
-            `Váš tiket "${this.activeTicket.subject || 'Bez predmetu'}" bol uzavretý.`,
-          ).catch(() => {})
-        }
-        await this.refreshTickets()
-        await this.reloadMessages()
-        this.cancelCloseReason()
-      } finally {
-        this.statusLoading = false
-      }
-    },
-    async reopenCurrentTicket() {
-      if (!this.activeTicket) return
-      this.statusLoading = true
-      try {
-        await reopenTicket(this.activeTicket.ticket_id)
-        await this.refreshTickets()
-      } finally {
-        this.statusLoading = false
-      }
-    },
-  },
+const props = defineProps<{
+  tickets: any[]
+  adminName?: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'ticket-updated'): void
+  (e: 'manage-user', ticket: any): void
+  (e: 'refresh'): void
+}>()
+
+const searchQuery = ref('')
+const statusFilter = ref('all')
+const localTickets = ref<any[]>([])
+const chatOpen = ref(false)
+const activeTicket = ref<any>(null)
+const messages = ref<any[]>([])
+const messagesLoading = ref(false)
+const sendLoading = ref(false)
+const statusLoading = ref(false)
+const replyText = ref('')
+const closeReasonOpen = ref(false)
+const closeReasonText = ref('')
+
+const filteredTickets = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return localTickets.value.filter((ticket) => {
+    const statusOk =
+      statusFilter.value === 'all' || normalizedStatus(ticket.status) === statusFilter.value
+    if (!statusOk) return false
+    if (!q) return true
+    return (
+      (ticket.subject || '').toLowerCase().includes(q) ||
+      (ticket.user_name || '').toLowerCase().includes(q) ||
+      (ticket.user_email || '').toLowerCase().includes(q) ||
+      String(ticket.ticket_id || '').includes(q)
+    )
+  })
 })
+
+watch(
+  () => props.tickets,
+  (value) => {
+    localTickets.value = Array.isArray(value) ? value.map((item) => ({ ...item })) : []
+  },
+  { immediate: true, deep: true },
+)
+
+watch(
+  chatOpen,
+  (open) => {
+    document.body.style.overflow = open ? 'hidden' : ''
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+})
+
+function normalizedStatus(status: string) {
+  return status === 'closed' ? 'closed' : 'open'
+}
+
+function statusLabel(status: string) {
+  return normalizedStatus(status) === 'closed' ? 'Uzavretý' : 'Otvorený'
+}
+
+function statusClass(status: string) {
+  return normalizedStatus(status) === 'closed' ? 'is-closed' : 'is-open'
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('sk-SK', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function isCloseReasonMessage(message: any) {
+  return typeof message?.body === 'string' && message.body.startsWith(CLOSE_REASON_PREFIX)
+}
+
+function extractCloseReason(body: string) {
+  if (typeof body !== 'string') return ''
+  return body.replace(CLOSE_REASON_PREFIX, '').trim()
+}
+
+function initials(name: string | undefined) {
+  if (!name) return '?'
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w[0] ?? '').toUpperCase())
+    .slice(0, 2)
+    .join('')
+}
+
+async function refreshTickets() {
+  const fresh = await adminGetAllTickets()
+  localTickets.value = Array.isArray(fresh) ? fresh : []
+  emit('ticket-updated')
+  if (activeTicket.value) {
+    const updated = localTickets.value.find(
+      (item) => item.ticket_id === activeTicket.value.ticket_id,
+    )
+    if (updated) activeTicket.value = { ...updated }
+  }
+}
+
+async function reloadMessages() {
+  if (!activeTicket.value) return
+  messages.value = await getTicketMessages(activeTicket.value.ticket_id)
+}
+
+async function openTicket(ticket: any) {
+  activeTicket.value = { ...ticket }
+  chatOpen.value = true
+  replyText.value = ''
+  closeReasonOpen.value = false
+  closeReasonText.value = ''
+  messagesLoading.value = true
+  try {
+    messages.value = await getTicketMessages(ticket.ticket_id)
+  } finally {
+    messagesLoading.value = false
+  }
+}
+
+function closeChat() {
+  chatOpen.value = false
+  activeTicket.value = null
+  messages.value = []
+  replyText.value = ''
+  closeReasonOpen.value = false
+  closeReasonText.value = ''
+}
+
+function openCloseReasonModal() {
+  closeReasonOpen.value = true
+  closeReasonText.value = ''
+}
+
+function cancelCloseReason() {
+  closeReasonOpen.value = false
+  closeReasonText.value = ''
+}
+
+async function sendReply() {
+  if (!activeTicket.value || !replyText.value.trim()) return
+  sendLoading.value = true
+  try {
+    await sendTicketMessage(
+      activeTicket.value.ticket_id,
+      'admin',
+      props.adminName || 'Administrator',
+      replyText.value.trim(),
+    )
+    if (activeTicket.value.user_id) {
+      await createAdminNotification(
+        activeTicket.value.user_id,
+        'Nová odpoveď na tiket',
+        `Dostali ste odpoveď na tiket: ${activeTicket.value.subject || 'Bez predmetu'}`,
+      ).catch(() => {})
+    }
+    replyText.value = ''
+    await reloadMessages()
+    await refreshTickets()
+  } finally {
+    sendLoading.value = false
+  }
+}
+
+async function confirmCloseCurrentTicket() {
+  if (!activeTicket.value || !closeReasonText.value.trim()) return
+  statusLoading.value = true
+  try {
+    await sendTicketMessage(
+      activeTicket.value.ticket_id,
+      'admin',
+      props.adminName || 'Administrator',
+      `${CLOSE_REASON_PREFIX}${closeReasonText.value.trim()}`,
+    )
+    await closeTicket(activeTicket.value.ticket_id)
+    if (activeTicket.value.user_id) {
+      await createAdminNotification(
+        activeTicket.value.user_id,
+        'Tiket bol uzavretý',
+        `Váš tiket "${activeTicket.value.subject || 'Bez predmetu'}" bol uzavretý.`,
+      ).catch(() => {})
+    }
+    await refreshTickets()
+    await reloadMessages()
+    cancelCloseReason()
+  } finally {
+    statusLoading.value = false
+  }
+}
+
+async function reopenCurrentTicket() {
+  if (!activeTicket.value) return
+  statusLoading.value = true
+  try {
+    await reopenTicket(activeTicket.value.ticket_id)
+    await refreshTickets()
+  } finally {
+    statusLoading.value = false
+  }
+}
 </script>
 
 <style scoped>

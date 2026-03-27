@@ -17,7 +17,7 @@
             v-for="holding in normalizedHoldings"
             :key="holding.holding_id"
             class="holding-row"
-            @click="$emit('asset-click', holding)"
+            @click="emit('asset-click', holding)"
           >
             <td>
               <div class="asset-cell">
@@ -53,47 +53,36 @@
   </section>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 
-export default defineComponent({
-  name: 'HoldingsPanel',
-  emits: ['asset-click'],
-  props: {
-    holdings: { type: Array, default: () => [] },
-    formatCurrency: { type: Function, required: true },
-  },
-  data() {
-    return {
-      imageErrors: {} as Record<string | number, boolean>,
-    }
-  },
-  computed: {
-    normalizedHoldings(): any[] {
-      return (this.holdings as any[]).map((holding: any) => ({
-        ...holding,
-        amount: holding.amount ?? 0,
-        current_price: holding.current_price ?? 0,
-        value: holding.value ?? 0,
-        change_24h: Number(holding.change_24h ?? 0),
-      }))
-    },
-  },
-  methods: {
-    markImageError(id: string | number) {
-      this.imageErrors = {
-        ...this.imageErrors,
-        [id]: true,
-      }
-    },
+const props = defineProps<{
+  holdings: any[]
+  formatCurrency: (value: number, currency?: string) => string
+}>()
 
-    formatPercent(value: number) {
-      const numeric = Number(value || 0)
-      return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(4)}%`
-    },
-  },
+const emit = defineEmits<{ (e: 'asset-click', holding: any): void }>()
+
+const imageErrors = ref<Record<string | number, boolean>>({})
+
+const normalizedHoldings = computed(() => {
+  return props.holdings.map((holding: any) => ({
+    ...holding,
+    amount: holding.amount ?? 0,
+    current_price: holding.current_price ?? 0,
+    value: holding.value ?? 0,
+    change_24h: Number(holding.change_24h ?? 0),
+  }))
 })
+
+function markImageError(id: string | number) {
+  imageErrors.value = { ...imageErrors.value, [id]: true }
+}
+
+function formatPercent(value: number) {
+  const numeric = Number(value || 0)
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(4)}%`
+}
 </script>
 
-<style>
-</style>
+<style></style>
