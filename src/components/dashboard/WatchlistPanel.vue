@@ -30,14 +30,21 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, type PropType } from 'vue'
+
+interface WatchlistItem {
+  watchlist_item_id: number
+  symbol: string
+  current_price: number
+  change_percent: number
+}
 
 export default defineComponent({
   name: 'WatchlistPanel',
   emits: ['add', 'remove'],
   props: {
-    assets: { type: Array, default: () => [] },
-    watchlist: { type: Array, default: () => [] },
+    assets: { type: Array as PropType<any[]>, default: () => [] },
+    watchlist: { type: Array as PropType<WatchlistItem[]>, default: () => [] },
     maxWatchlist: { type: Number, default: -1 },
     formatCurrency: { type: Function, required: true },
   },

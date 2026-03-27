@@ -93,7 +93,7 @@ export default defineComponent({
   },
   data() {
     return {
-      ranges: ['1h', '24h', '7d', '30d'],
+      ranges: ['1h', '24h', '7d', '30d'] as ('1h' | '24h' | '7d' | '30d')[],
       detailRange: '24h' as '1h' | '24h' | '7d' | '30d',
       detailLoading: false,
       detailPrices: [] as any[],

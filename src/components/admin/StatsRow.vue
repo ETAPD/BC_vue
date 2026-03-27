@@ -21,6 +21,10 @@
       <span class="stat-label">Držby</span>
     </div>
     <div class="stat-card">
+      <span class="stat-num">{{ messagesCount }}</span>
+      <span class="stat-label">Správy</span>
+    </div>
+    <div class="stat-card">
       <span class="stat-num">{{ ticketsCount }}</span>
       <span class="stat-label">Tikety</span>
     </div>
@@ -38,6 +42,7 @@ export default defineComponent({
     ordersCount: { type: Number, required: true },
     tradesCount: { type: Number, required: true },
     holdingsCount: { type: Number, required: true },
+    messagesCount: { type: Number, required: true },
     ticketsCount: { type: Number, required: true },
   },
 })
@@ -46,7 +51,7 @@ export default defineComponent({
 <style scoped>
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 1.25rem;
   margin-bottom: 2rem;
 }

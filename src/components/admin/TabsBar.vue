@@ -13,7 +13,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent, type PropType } from 'vue'
 
 const tabs = [
   { key: 'users', label: 'Používatelia', icon: '👤' },
@@ -21,6 +21,7 @@ const tabs = [
   { key: 'orders', label: 'Príkazy', icon: '📋' },
   { key: 'trades', label: 'Obchody', icon: '📊' },
   { key: 'holdings', label: 'Držby', icon: '📦' },
+  { key: 'messages', label: 'Správy', icon: '✉️' },
   { key: 'tickets', label: 'Tikety', icon: '🎫' },
 ] as const
 
